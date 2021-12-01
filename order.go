@@ -20,17 +20,22 @@ type Order[E any] struct {
 	RefLess func(a, b *E) bool
 }
 
+func isSmallUnit[E any]() bool {
+	var elem E
+	var word uintptr
+	return unsafe.Sizeof(elem) <= unsafe.Sizeof(word)*2
+}
+
 // The general version of BinarySearch.
 func (od *Order[E]) BinarySearch(list []E, x E) int {
-	if od.RefLess != nil {
+	if od.RefLess == nil {
+		if od.Less == nil {
+			panic("uninitialized Order")
+		}
+	} else if od.Less == nil || !isSmallUnit[E]() {
 		return refLessFunc[E](od.RefLess).binarySearch(list, x)
 	}
-	if lt := od.Less; lt != nil {
-		return refLessFunc[E](func(a, b *E) bool {
-			return lt(*a, *b)
-		}).binarySearch(list, x)
-	}
-	panic("uninitialized Order")
+	return lessFunc[E](od.Less).binarySearch(list, x)
 }
 
 // The general version of IsSorted.
@@ -42,16 +47,10 @@ func (od *Order[E]) IsSorted(list []E) bool {
 		if od.Less == nil {
 			panic("uninitialized Order")
 		}
-		return lessFunc[E](od.Less).isSorted(list)
-	} else {
-		elemSize := unsafe.Sizeof(list[0])
-		wordSize := unsafe.Sizeof(uintptr(0))
-		if elemSize <= wordSize*2 && od.Less != nil {
-			return lessFunc[E](od.Less).isSorted(list)
-		} else {
-			return refLessFunc[E](od.RefLess).isSorted(list)
-		}
+	} else if od.Less == nil || !isSmallUnit[E]() {
+		return refLessFunc[E](od.RefLess).isSorted(list)
 	}
+	return lessFunc[E](od.Less).isSorted(list)
 }
 
 // The general version of Sort.
@@ -77,42 +76,25 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 		if od.Less == nil {
 			panic("uninitialized Order")
 		}
-		if stable {
-			lessFunc[E](od.Less).sortStable(list, inplace)
-		} else {
-			lessFunc[E](od.Less).sort(list)
-		}
-	} else {
+	} else if od.Less == nil || !isSmallUnit[E]() {
 		elemSize := unsafe.Sizeof(list[0])
 		wordSize := unsafe.Sizeof(uintptr(0))
-		if od.Less != nil && elemSize <= wordSize*2 {
-			if stable {
-				lessFunc[E](od.Less).sortStable(list, inplace)
-			} else {
-				lessFunc[E](od.Less).sort(list)
-			}
-			return
-		}
-		if inplace {
-			if stable {
-				refLessFunc[E](od.RefLess).sortStable(list, true)
-			} else {
-				refLessFunc[E](od.RefLess).sort(list)
-			}
-			return
-		}
 		if stable {
+			if inplace {
+				refLessFunc[E](od.RefLess).sortStable(list, true)
+				return
+			}
 			if elemSize <= wordSize*2 {
 				refLessFunc[E](od.RefLess).sortStable(list, false)
 				return
 			}
-		} else {
-			if elemSize <= wordSize*4 {
-				//slower than ref mode, but no extra allocation
-				refLessFunc[E](od.RefLess).sort(list)
-				return
-			}
+		} else if elemSize <= wordSize*4 || inplace {
+			//slower than ref mode, but no extra allocation
+			refLessFunc[E](od.RefLess).sort(list)
+			return
 		}
+
+		// sort by pointer list
 		ref := make([]*E, len(list))
 		for i := 0; i < len(list); i++ {
 			ref[i] = &list[i]
@@ -123,6 +105,12 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 			lessFunc[*E](od.RefLess).sort(ref)
 		}
 		reorder(list, ref)
+		return
+	}
+	if stable {
+		lessFunc[E](od.Less).sortStable(list, inplace)
+	} else {
+		lessFunc[E](od.Less).sort(list)
 	}
 }
 
@@ -168,9 +156,7 @@ func log2Ceil[T _uint](num T) uint {
 
 // The general version of BinarySearch.
 func BinarySearchFunc[E any](list []E, x E, less func(a, b E) bool) int {
-	return refLessFunc[E](func(a, b *E) bool {
-		return less(*a, *b)
-	}).binarySearch(list, x)
+	return lessFunc[E](less).binarySearch(list, x)
 }
 
 // The general version of IsSorted.

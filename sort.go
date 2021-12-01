@@ -8,6 +8,25 @@ package slices
 
 import "constraints"
 
+// Search one E in sorted list, return index that list[index] >= x.
+// The retuned index can be len(list), but never negtive.
+func BinarySearch[E constraints.Ordered](list []E, x E) int {
+	return binarySearch(list, x)
+}
+
+func binarySearch[E constraints.Ordered](list []E, x E) int {
+	a, b := 0, len(list)
+	for a < b {
+		m := int(uint(a+b) / 2)
+		if less(list[m], x) {
+			a = m + 1
+		} else {
+			b = m
+		}
+	}
+	return a
+}
+
 func reverse[E any](list []E) {
 	for l, r := 0, len(list)-1; l < r; {
 		list[l], list[r] = list[r], list[l]

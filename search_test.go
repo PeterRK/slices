@@ -4,22 +4,7 @@
 
 package slices
 
-import (
-	"constraints"
-	"testing"
-)
-
-func naiveOrder[E constraints.Ordered](reverse bool) *Order[E] {
-	if reverse {
-		return &Order[E]{Less: func(a, b E) bool {
-			return a > b
-		}}
-	} else {
-		return &Order[E]{Less: func(a, b E) bool {
-			return a < b
-		}}
-	}
-}
+import "testing"
 
 var data = []int{0: -10, 1: -5, 2: 0, 3: 1, 4: 2, 5: 3, 6: 5, 7: 7, 8: 11, 9: 100, 10: 100, 11: 100, 12: 1000, 13: 10000}
 var fdata = []float64{0: -3.14, 1: 0, 2: 1, 3: 2, 4: 1000.7}

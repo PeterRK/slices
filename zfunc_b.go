@@ -6,6 +6,19 @@
 
 package slices
 
+func (lt refLessFunc[E]) binarySearch(list []E, x E) int {
+	a, b := 0, len(list)
+	for a < b {
+		m := int(uint(a+b) / 2)
+		if lt(&list[m], &x) {
+			a = m + 1
+		} else {
+			b = m
+		}
+	}
+	return a
+}
+
 func (lt refLessFunc[E]) isSorted(list []E) bool {
 	for i := 1; i < len(list); i++ {
 		if lt(&list[i], &list[i-1]) {
