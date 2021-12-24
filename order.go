@@ -143,17 +143,6 @@ func reorder[E any](list []E, ref []*E) {
 	}
 }
 
-//FIXME: non-export function must be generic?
-type _uint interface{ ~uint }
-
-func log2Ceil[T _uint](num T) uint {
-	ceil := uint(0)
-	for ; num != 0; ceil++ {
-		num /= 2
-	}
-	return ceil
-}
-
 // The general version of BinarySearch.
 func BinarySearchFunc[E any](list []E, x E, less func(a, b E) bool) int {
 	return lessFunc[E](less).binarySearch(list, x)

@@ -35,6 +35,14 @@ func reverse[E any](list []E) {
 	}
 }
 
+func log2Ceil(num uint) uint {
+	ceil := uint(0)
+	for ; num != 0; ceil++ {
+		num /= 2
+	}
+	return ceil
+}
+
 // With small E, double reversion is faster than the BlockSwap rotation.
 // BlockSwap rotation needs less swaps, but more branches.
 func rotate[E any](list []E, border int) {
@@ -66,7 +74,11 @@ func isSorted[E constraints.Ordered](list []E) bool {
 // It makes O(n*log(n)) calls to less function.
 // The sort is not guaranteed to be stable.
 func Sort[E constraints.Ordered](list []E) {
-	sort(list)
+	if branchEmilinatable[E]() {
+		blockIntroSort(list, log2Ceil(uint(len(list)))*2)
+	} else {
+		sort(list)
+	}
 }
 
 func sort[E constraints.Ordered](list []E) {
@@ -446,4 +458,179 @@ func mergeSort[E constraints.Ordered](a, b []E) {
 			j++
 		}
 	}
+}
+
+// no codegen
+func sortIndex3[T constraints.Ordered](list []T, a, b, c int) (int, int, int) {
+	if list[a] < list[b] {
+		if list[b] < list[c] {
+			return a, b, c
+		} else if list[a] < list[c] {
+			return a, c, b
+		} else {
+			return c, a, b
+		}
+	} else {
+		if list[a] < list[c] {
+			return b, a, c
+		} else if list[b] < list[c] {
+			return b, c, a
+		} else {
+			return c, b, a
+		}
+	}
+}
+
+// no codegen
+// return int instead of bool
+// should be inlined
+func compGE[T constraints.Ordered](a, b T) int {
+	if a < b {
+		return 0
+	} else {
+		return 1
+	}
+}
+
+// no codegen
+// the block partition algorithm from Edelkamp, Stefan, and Armin Weiß.
+// "Blockquicksort: Avoiding branch mispredictions in quicksort."
+// Journal of Experimental Algorithmics (JEA) 24 (2019): 1-22.
+func blockPartition[T constraints.Ordered](list []T) int {
+	size := len(list)
+	m, s := size/2, size/4
+	l, m, r := sortIndex3(list, m-s, m, m+s)
+	if size > 128 {
+		s = size / 8
+		_, l, _ = sortIndex3(list, s, m-s, m-1)
+		_, r, _ = sortIndex3(list, m+1, m+s, size-s)
+		l, m, r = sortIndex3(list, l, m, r)
+	}
+	s = size - 1
+	pivot := list[m]
+	list[0], list[l] = list[l], list[0]
+	list[s], list[r] = list[r], list[s]
+
+	l, r = 1, s-1
+	// with branch elimination
+	// complicatied but fast in some superscalar machine
+	const blockSize = 64
+	if r-l > blockSize*2-1 {
+		var ml, mr struct {
+			v [blockSize]uint8
+			a int
+			b int
+		}
+		for r-l > blockSize*2-1 {
+			if ml.a == ml.b {
+				ml.a, ml.b = 0, 0
+				for i := 0; i < blockSize; i++ {
+					ml.v[ml.b] = uint8(i)
+					ml.b += compGE(list[l+i], pivot)
+				}
+			}
+			if mr.a == mr.b {
+				mr.a, mr.b = 0, 0
+				for i := 0; i < blockSize; i++ {
+					mr.v[mr.b] = uint8(i)
+					mr.b += compGE(pivot, list[r-i])
+				}
+			}
+			sz := ml.b - ml.a
+			if t := mr.b - mr.a; t < sz {
+				sz = t
+			}
+			for i := 0; i < sz; i++ {
+				ll := l + int(ml.v[ml.a])
+				ml.a++
+				rr := r - int(mr.v[mr.a])
+				mr.a++
+				list[ll], list[rr] = list[rr], list[ll]
+			}
+			if ml.a == ml.b {
+				l += blockSize
+			}
+			if mr.a == mr.b {
+				r -= blockSize
+			}
+		}
+		if ml.a != ml.b {
+			for {
+				for list[r] > pivot {
+					r--
+				}
+				ll := l + int(ml.v[ml.a])
+				// list[r] <= pivot
+				// list[r+1] > pivot
+				if ll >= r {
+					return r + 1
+				}
+				list[ll], list[r] = list[r], list[ll]
+				r--
+				// list[r] ?
+				// list[r+1] >= pivot
+				if ml.a++; ml.a == ml.b {
+					l += blockSize
+					if l > r {
+						return r + 1
+					}
+					break
+				}
+			}
+		} else if mr.a != mr.b {
+			for {
+				for list[l] < pivot {
+					l++
+				}
+				rr := r - int(mr.v[mr.a])
+				// list[l] >= pivot
+				// list[l-1] < pivot
+				if l >= rr {
+					return l
+				}
+				list[l], list[rr] = list[rr], list[l]
+				l++
+				// list[l] ?
+				// list[l-1] <= pivot
+				if mr.a++; mr.a == mr.b {
+					r -= blockSize
+					if l > r {
+						return l
+					}
+					break
+				}
+			}
+		}
+	}
+
+	for {
+		for list[l] < pivot {
+			l++
+		}
+		for list[r] > pivot {
+			r--
+		}
+		if l >= r {
+			break
+		}
+		list[l], list[r] = list[r], list[l]
+		l++
+		r--
+	}
+	return l
+}
+
+// no codegen
+func blockIntroSort[T constraints.Ordered](list []T, chance uint) {
+	for len(list) > 12 {
+		if chance == 0 {
+			heapSort(list)
+			return
+		}
+		chance--
+		m := blockPartition(list)
+		blockIntroSort(list[m:], chance)
+		list = list[:m]
+	}
+	simpleSort(list)
 }

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ignore
-// +build ignore
 
 // This program is run via "go generate" (via a directive in sort.go)
 // to generate zfunc_a.go & zfunc_b.go.
@@ -38,7 +37,7 @@ func main() {
 		fd, ok := d.(*ast.FuncDecl)
 		if !ok || fd.Recv != nil ||
 			fd.Name.Name == "less" || fd.Name.IsExported() ||
-			len(fd.Type.Params.List) < 1 || len(fd.Type.TypeParams.List) != 1 {
+			fd.Type.TypeParams == nil || len(fd.Type.TypeParams.List) != 1 {
 			continue
 		}
 		field := fd.Type.TypeParams.List[0]
