@@ -6,7 +6,10 @@
 
 package slices
 
-import "constraints"
+import (
+	"math/bits"
+	"constraints"
+)
 
 // Search one E in sorted list, return index that list[index] >= x.
 // The retuned index can be len(list), but never negtive.
@@ -35,12 +38,8 @@ func reverse[E any](list []E) {
 	}
 }
 
-func log2Ceil(num uint) uint {
-	ceil := uint(0)
-	for ; num != 0; ceil++ {
-		num /= 2
-	}
-	return ceil
+func log2Ceil(num uint) int {
+	return bits.Len(num)
 }
 
 // With small E, double reversion is faster than the BlockSwap rotation.
@@ -301,13 +300,12 @@ func triPartition[E constraints.Ordered](list []E) (l, r int) {
 	return l, r
 }
 
-func introSort[E constraints.Ordered](list []E, chance uint) {
+func introSort[E constraints.Ordered](list []E, chance int) {
 	for len(list) > 14 {
-		if chance == 0 {
+		if chance--; chance < 0 {
 			heapSort(list)
 			return
 		}
-		chance--
 		// Dual pivot quicksort need less memory access, witch makes it faster
 		// than single pivot version in many cases, but not always.
 		l, r := triPartition(list)
@@ -621,13 +619,12 @@ func blockPartition[T constraints.Ordered](list []T) int {
 }
 
 // no codegen
-func blockIntroSort[T constraints.Ordered](list []T, chance uint) {
+func blockIntroSort[T constraints.Ordered](list []T, chance int) {
 	for len(list) > 12 {
-		if chance == 0 {
+		if chance--; chance < 0 {
 			heapSort(list)
 			return
 		}
-		chance--
 		m := blockPartition(list)
 		blockIntroSort(list[m:], chance)
 		list = list[:m]

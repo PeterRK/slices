@@ -233,13 +233,12 @@ func (lt lessFunc[E]) triPartition(list []E) (l, r int) {
 	return l, r
 }
 
-func (lt lessFunc[E]) introSort(list []E, chance uint) {
+func (lt lessFunc[E]) introSort(list []E, chance int) {
 	for len(list) > 14 {
-		if chance == 0 {
+		if chance--; chance < 0 {
 			lt.heapSort(list)
 			return
 		}
-		chance--
 
 		l, r := lt.triPartition(list)
 		lt.introSort(list[:l], chance)
