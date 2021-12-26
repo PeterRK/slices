@@ -510,10 +510,36 @@ func blockPartition[T constraints.Ordered](list []T) int {
 	list[s], list[r] = list[r], list[s]
 
 	l, r = 1, s-1
+	pattern := 0  // try to detect ascent, descent, constant
+	// 0: constant
+	// 1: partitioned, maybe ascent
+	// 2: reverse partitioned, maybe descent
+	// 3: unordered
+
 	// with branch elimination
 	// complicatied but fast in some superscalar machine
 	const blockSize = 64
 	if r-l > blockSize*2-1 {
+		// branch elimination may be faster only in unordered pattern
+		for pattern != 3 {
+			for list[l] < pivot {
+				l++
+				pattern |= 1
+			}
+			for list[r] > pivot {
+				r--
+				pattern |= 1
+			}
+			if l >= r {
+				goto finish
+			}
+			list[l], list[r] = list[r], list[l]
+			if (pattern & 2) == 0 && list[l] != list[r] {
+				pattern |= 2
+			}
+			l++
+			r--
+		}
 		var ml, mr struct {
 			v [blockSize]uint8
 			a int
@@ -604,16 +630,34 @@ func blockPartition[T constraints.Ordered](list []T) int {
 	for {
 		for list[l] < pivot {
 			l++
+			pattern |= 1
 		}
 		for list[r] > pivot {
 			r--
+			pattern |= 1
 		}
 		if l >= r {
 			break
 		}
 		list[l], list[r] = list[r], list[l]
+		if (pattern & 2) == 0 && list[l] != list[r] {
+			pattern |= 2
+		}
 		l++
 		r--
+	}
+finish:
+	if pattern == 0 {
+		if list[0] == list[s] {
+			return -1
+		}
+	} else if pattern == 1 {
+		for i := 0; i < s; i++ {
+			if list[i] > list[i+1] {
+				return l
+			}
+		}
+		return -1
 	}
 	return l
 }
@@ -626,6 +670,9 @@ func blockIntroSort[T constraints.Ordered](list []T, chance int) {
 			return
 		}
 		m := blockPartition(list)
+		if m < 0 {
+			return
+		}
 		blockIntroSort(list[m:], chance)
 		list = list[:m]
 	}
