@@ -497,19 +497,19 @@ func compGE[T constraints.Ordered](a, b T) int {
 func blockPartition[T constraints.Ordered](list []T) int {
 	size := len(list)
 	m, s := size/2, size/4
-	l, m, r := sortIndex3(list, m-s, m, m+s)
+	a, m, b := sortIndex3(list, m-s, m, m+s)
 	if size > 128 {
 		s = size / 8
-		_, l, _ = sortIndex3(list, s, m-s, m-1)
-		_, r, _ = sortIndex3(list, m+1, m+s, size-s)
-		l, m, r = sortIndex3(list, l, m, r)
+		_, a, _ = sortIndex3(list, s, m-s, m-1)
+		_, b, _ = sortIndex3(list, m+1, m+s, size-s)
+		a, m, b = sortIndex3(list, a, m, b)
 	}
 	s = size - 1
 	pivot := list[m]
-	list[0], list[l] = list[l], list[0]
-	list[s], list[r] = list[r], list[s]
+	list[0], list[a] = list[a], list[0]
+	list[s], list[b] = list[b], list[s]
 
-	l, r = 1, s-1
+	l, r := 1, s-1
 	pattern := 0  // try to detect ascent, descent, constant
 	// 0: constant
 	// 1: partitioned, maybe ascent
@@ -651,7 +651,10 @@ finish:
 		if list[0] == list[s] {
 			return -1
 		}
-	} else if pattern == 1 {
+	} else if pattern == 1 && a < l && l <= b {
+		// rollback then check
+		list[0], list[a] = list[a], list[0]
+		list[s], list[b] = list[b], list[s]
 		for i := 0; i < s; i++ {
 			if list[i] > list[i+1] {
 				return l
