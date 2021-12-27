@@ -7,8 +7,8 @@
 package slices
 
 import (
-	"math/bits"
 	"constraints"
+	"math/bits"
 )
 
 // Search one E in sorted list, return index that list[index] >= x.
@@ -460,21 +460,22 @@ func mergeSort[E constraints.Ordered](a, b []E) {
 
 // no codegen
 func sortIndex3[T constraints.Ordered](list []T, a, b, c int) (int, int, int) {
-	if list[a] < list[b] {
-		if list[b] < list[c] {
-			return a, b, c
-		} else if list[a] < list[c] {
-			return a, c, b
-		} else {
-			return c, a, b
-		}
-	} else {
-		if list[a] < list[c] {
-			return b, a, c
-		} else if list[b] < list[c] {
+	// keep stable
+	if list[a] > list[b] {
+		if list[b] > list[c] {
+			return c, b, a
+		} else if list[a] > list[c] {
 			return b, c, a
 		} else {
-			return c, b, a
+			return b, a, c
+		}
+	} else {
+		if list[a] > list[c] {
+			return c, a, b
+		} else if list[b] > list[c] {
+			return a, c, b
+		} else {
+			return a, b, c
 		}
 	}
 }
@@ -496,21 +497,27 @@ func compGE[T constraints.Ordered](a, b T) int {
 // Journal of Experimental Algorithmics (JEA) 24 (2019): 1-22.
 func blockPartition[T constraints.Ordered](list []T) int {
 	size := len(list)
-	m, s := size/2, size/4
-	a, m, b := sortIndex3(list, m-s, m, m+s)
+	x, s := size/2, size-1
+	var a, m, b int
 	if size > 128 {
-		s = size / 8
-		_, a, _ = sortIndex3(list, s, m-s, m-1)
-		_, b, _ = sortIndex3(list, m+1, m+s, size-s)
+		y, z := size/4, size/8
+		_, m, _ = sortIndex3(list, x-y, x, x+y)
+		_, a, _ = sortIndex3(list, x-z, x-1, size-z)
+		_, b, _ = sortIndex3(list, z, x+1, x+z)
 		a, m, b = sortIndex3(list, a, m, b)
+	} else {
+		a, m, b = sortIndex3(list, x-1, x, x+1)
 	}
-	s = size - 1
+	if list[0] > list[s] {
+		// may convert descent array to ascent array
+		list[0], list[s] = list[s], list[0]
+	}
 	pivot := list[m]
 	list[0], list[a] = list[a], list[0]
 	list[s], list[b] = list[b], list[s]
 
 	l, r := 1, s-1
-	pattern := 0  // try to detect ascent, descent, constant
+	pattern := 0 // try to detect ascent, descent, constant
 	// 0: constant
 	// 1: partitioned, maybe ascent
 	// 2: reverse partitioned, maybe descent
@@ -534,7 +541,7 @@ func blockPartition[T constraints.Ordered](list []T) int {
 				goto finish
 			}
 			list[l], list[r] = list[r], list[l]
-			if (pattern & 2) == 0 && list[l] != list[r] {
+			if (pattern&2) == 0 && list[l] != list[r] {
 				pattern |= 2
 			}
 			l++
@@ -640,27 +647,38 @@ func blockPartition[T constraints.Ordered](list []T) int {
 			break
 		}
 		list[l], list[r] = list[r], list[l]
-		if (pattern & 2) == 0 && list[l] != list[r] {
+		if (pattern&2) == 0 && list[l] != list[r] {
 			pattern |= 2
 		}
 		l++
 		r--
 	}
 finish:
-	if pattern == 0 {
-		if list[0] == list[s] {
+	if pattern == 3 {
+		// common case
+	} else if pattern == 0 {
+		// list[0] <= pivot <= list[s]
+		// values in list[1:s-1] are all pivot
+		return -1
+	} else if pattern == 1 {
+		if a < l && l <= b {
+			// rollback then check
+			list[0], list[a] = list[a], list[0]
+			list[s], list[b] = list[b], list[s]
+			for i := 0; i < s; i++ {
+				if list[i] > list[i+1] {
+					return l
+				}
+			}
 			return -1
 		}
-	} else if pattern == 1 && a < l && l <= b {
-		// rollback then check
-		list[0], list[a] = list[a], list[0]
-		list[s], list[b] = list[b], list[s]
-		for i := 0; i < s; i++ {
-			if list[i] > list[i+1] {
-				return l
-			}
+	} else if pattern == 2 {
+		// fix up to make ascent sub-arrays if orign array is descent
+		if list[l] == pivot {
+			list[s], list[l+1] = list[l+1], list[s]
+		} else if list[r] == pivot {
+			list[0], list[r-1] = list[r-1], list[0]
 		}
-		return -1
 	}
 	return l
 }
