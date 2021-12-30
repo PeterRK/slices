@@ -483,11 +483,11 @@ func sortIndex3[T constraints.Ordered](list []T, a, b, c int) (int, int, int) {
 // no codegen
 // return int instead of bool
 // should be inlined
-func compGE[T constraints.Ordered](a, b T) int {
-	if a < b {
-		return 0
-	} else {
+func cmpGT[T constraints.Ordered](a, b T) int {
+	if a > b {
 		return 1
+	} else {
+		return 0
 	}
 }
 
@@ -557,14 +557,14 @@ func blockPartition[T constraints.Ordered](list []T) int {
 				ml.a, ml.b = 0, 0
 				for i := 0; i < blockSize; i++ {
 					ml.v[ml.b] = uint8(i)
-					ml.b += compGE(list[l+i], pivot)
+					ml.b += cmpGT(list[l+i], pivot)
 				}
 			}
 			if mr.a == mr.b {
 				mr.a, mr.b = 0, 0
 				for i := 0; i < blockSize; i++ {
 					mr.v[mr.b] = uint8(i)
-					mr.b += compGE(pivot, list[r-i])
+					mr.b += cmpGT(pivot, list[r-i])
 				}
 			}
 			sz := ml.b - ml.a
