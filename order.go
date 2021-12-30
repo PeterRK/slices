@@ -79,22 +79,23 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 	} else if od.Less == nil || !isSmallUnit[E]() {
 		elemSize := unsafe.Sizeof(list[0])
 		wordSize := unsafe.Sizeof(uintptr(0))
+		big := int(elemSize + wordSize) * len(list) > 256*1024
 		if stable {
 			if inplace {
 				refLessFunc[E](od.RefLess).sortStable(list, true)
 				return
 			}
-			if elemSize <= wordSize*2 {
+			if elemSize <= wordSize*2 || big {
 				refLessFunc[E](od.RefLess).sortStable(list, false)
 				return
 			}
-		} else if elemSize <= wordSize*4 || inplace {
+		} else if elemSize <= wordSize*4 || big || inplace {
 			//slower than ref mode, but no extra allocation
 			refLessFunc[E](od.RefLess).sort(list)
 			return
 		}
 
-		// sort by pointer list
+		// sort by pointer list, fast in cache
 		ref := make([]*E, len(list))
 		for i := 0; i < len(list); i++ {
 			ref[i] = &list[i]
