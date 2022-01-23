@@ -696,6 +696,7 @@ finish:
 
 // no codegen
 func blockIntroSort[T constraints.Ordered](list []T, chance int) {
+	// blockPartition doesn't work well on all patterns, fallback if necessary 
 	for hard := false; len(list) > 12; {
 		if chance--; chance < 0 {
 			heapSort(list)
@@ -705,15 +706,27 @@ func blockIntroSort[T constraints.Ordered](list []T, chance int) {
 		if m < 0 {
 			return
 		}
-		s := len(list) / 4
+		s := len(list) / 8
 		if m < s {
 			blockIntroSort(list[:m], chance)
 			list = list[m:]
+			if hard {
+				introSort(list, chance)
+				return
+			}
 			hard = true
 		} else {
 			blockIntroSort(list[m:], chance)
 			list = list[:m]
-			hard = m > 3 * s
+			if m > 7 * s {
+				if hard {
+					introSort(list, chance)
+					return
+				}
+				hard = true
+			} else {
+				hard = false
+			}
 		}
 	}
 	simpleSort(list)
