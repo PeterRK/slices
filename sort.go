@@ -311,7 +311,7 @@ func introSort[E constraints.Ordered](list []E, chance int) {
 		l, r := triPartition(list)
 		introSort(list[:l], chance)
 		introSort(list[r+1:], chance)
-		if less(list[r], list[l]) {
+		if !less(list[l], list[r]) {
 			return // All emelents in the middle segemnt are equal.
 		}
 		list = list[l+1 : r]

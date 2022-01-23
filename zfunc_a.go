@@ -243,7 +243,7 @@ func (lt lessFunc[E]) introSort(list []E, chance int) {
 		l, r := lt.triPartition(list)
 		lt.introSort(list[:l], chance)
 		lt.introSort(list[r+1:], chance)
-		if lt(list[r], list[l]) {
+		if !lt(list[l], list[r]) {
 			return
 		}
 		list = list[l+1 : r]
