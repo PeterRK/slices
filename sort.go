@@ -495,32 +495,22 @@ func cmpGT[T constraints.Ordered](a, b T) int {
 // the block partition algorithm from Edelkamp, Stefan, and Armin Weiß.
 // "Blockquicksort: Avoiding branch mispredictions in quicksort."
 // Journal of Experimental Algorithmics (JEA) 24 (2019): 1-22.
-func blockPartition[T constraints.Ordered](list []T, hard bool) int {
+func blockPartition[T constraints.Ordered](list []T) int {
 	size := len(list)
 	x, s := size/2, size-1
 	var a, m, b int
-	if hard {
-		a, m, b = sortIndex3(list, 1, x, s-1)
-		if size > 32 {
-			y, z := size/4, size/8
-			_, a, _ = sortIndex3(list, x-y, x-1, x+z)
-			_, b, _ = sortIndex3(list, x-z, x+1, x+y)
-			a, m, b = sortIndex3(list, a, m, b)
-		}
+	if size > 128 {
+		y, z := size/4, size/8
+		_, m, _ = sortIndex3(list, 1, x, s-1)
+		_, a, _ = sortIndex3(list, x-y, x-1, x+z)
+		_, b, _ = sortIndex3(list, x-z, x+1, x+y)
+		a, m, b = sortIndex3(list, a, m, b)
 	} else {
-		if size > 128 {
-			y, z := size/4, size/8
-			_, m, _ = sortIndex3(list, 1, x, s-1)
-			_, a, _ = sortIndex3(list, x-y, x-1, x+z)
-			_, b, _ = sortIndex3(list, x-z, x+1, x+y)
-			a, m, b = sortIndex3(list, a, m, b)
-		} else {
-			a, m, b = sortIndex3(list, x-1, x, x+1)
-		}
-		if list[0] > list[s] {
-			// may convert descent array to ascent array
-			list[0], list[s] = list[s], list[0]
-		}
+		a, m, b = sortIndex3(list, x-1, x, x+1)
+	}
+	if list[0] > list[s] {
+		// may convert descent array to ascent array
+		list[0], list[s] = list[s], list[0]
 	}
 
 	pivot := list[m]
@@ -696,13 +686,13 @@ finish:
 
 // no codegen
 func blockIntroSort[T constraints.Ordered](list []T, chance int) {
-	// blockPartition doesn't work well on all patterns, fallback if necessary 
-	for hard := false; len(list) > 12; {
+	// blockPartition doesn't work well on all patterns, fallback if necessary
+	for skewed := false; len(list) > 360; {
 		if chance--; chance < 0 {
 			heapSort(list)
 			return
 		}
-		m := blockPartition(list, hard)
+		m := blockPartition(list)
 		if m < 0 {
 			return
 		}
@@ -710,24 +700,22 @@ func blockIntroSort[T constraints.Ordered](list []T, chance int) {
 		if m < s {
 			blockIntroSort(list[:m], chance)
 			list = list[m:]
-			if hard {
-				introSort(list, chance)
-				return
+			if skewed {
+				break
 			}
-			hard = true
+			skewed = true
 		} else {
 			blockIntroSort(list[m:], chance)
 			list = list[:m]
-			if m > 7 * s {
-				if hard {
-					introSort(list, chance)
-					return
+			if m > 7*s {
+				if skewed {
+					break
 				}
-				hard = true
+				skewed = true
 			} else {
-				hard = false
+				skewed = false
 			}
 		}
 	}
-	simpleSort(list)
+	introSort(list, chance)
 }

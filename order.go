@@ -79,7 +79,7 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 	} else if od.Less == nil || !isSmallUnit[E]() {
 		elemSize := unsafe.Sizeof(list[0])
 		wordSize := unsafe.Sizeof(uintptr(0))
-		big := int(elemSize + wordSize) * len(list) > 256*1024
+		big := int(elemSize+wordSize)*len(list) > 256*1024
 		if stable {
 			if inplace {
 				refLessFunc[E](od.RefLess).sortStable(list, true)
