@@ -77,21 +77,30 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 			panic("uninitialized Order")
 		}
 	} else if od.Less == nil || !isSmallUnit[E]() {
-		elemSize := unsafe.Sizeof(list[0])
-		wordSize := unsafe.Sizeof(uintptr(0))
-		big := int(elemSize+wordSize)*len(list) > 256*1024
+		elemSize := int(unsafe.Sizeof(list[0]))
+		wordSize := int(unsafe.Sizeof(uintptr(0)))
+		footprint := elemSize + wordSize
+		if footprint > 64 {
+			footprint = 64
+		}
+		// movement is cheap for small data
+		// random access is expensive for big data
+		noRefSort := elemSize*len(list) < 1024 ||
+			footprint*len(list) > 256*1024
 		if stable {
 			if inplace {
 				refLessFunc[E](od.RefLess).sortStable(list, true)
 				return
 			}
-			if elemSize <= wordSize*2 || big {
+			if elemSize <= wordSize*2 || noRefSort {
 				refLessFunc[E](od.RefLess).sortStable(list, false)
 				return
 			}
-		} else if elemSize <= wordSize*4 || big || inplace {
+		} else if elemSize <= wordSize*4 || noRefSort || inplace {
 			//slower than ref mode, but no extra allocation
 			refLessFunc[E](od.RefLess).sort(list)
+			return
+		} else if len(list) < 2 {
 			return
 		}
 

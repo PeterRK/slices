@@ -1,7 +1,7 @@
 # slices
 Generic sort for slices in golang.
 
-Compared to old api in stdlib, it runs **100%-150%** faster on intergers (**5x-30x** speed on special patterns), **120%-200%** faster on floats, **20%** faster on strings, and **20%-100%** faster on custom types.
+Compared to old api in stdlib, it runs **130%-180%** faster on intergers (**5x-30x** speed on special patterns), **150%-200%** faster on floats, **20%** faster on strings, and **20%-100%** faster on custom types.
 See details in [benchmark](https://gist.github.com/PeterRK/c9c37075fabd4354cdb13ab964c1c4e4).
 
 ## API for builtin types
