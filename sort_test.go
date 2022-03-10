@@ -5,7 +5,7 @@
 package slices
 
 import (
-	"constraints"
+	"golang.org/x/exp/constraints"
 	"fmt"
 	"math"
 	"math/rand"

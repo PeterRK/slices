@@ -6,7 +6,7 @@
 
 package slices
 
-import "constraints"
+import "golang.org/x/exp/constraints"
 
 func branchEmilinatable[T constraints.Ordered]() bool {
 	return false

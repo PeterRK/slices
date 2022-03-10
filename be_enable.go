@@ -7,7 +7,7 @@
 package slices
 
 import (
-	"constraints"
+	"golang.org/x/exp/constraints"
 	"unsafe"
 )
 
