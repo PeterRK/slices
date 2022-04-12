@@ -527,7 +527,7 @@ func blockPartition[T constraints.Ordered](list []T) int {
 	// with branch elimination
 	// complicatied but fast in some superscalar machine
 	const blockSize = 64
-	if r-l > blockSize*2-1 {
+	if r-l >= blockSize*2 {
 		// branch elimination may be faster only in unordered pattern
 		for pattern != 3 {
 			for list[l] < pivot {
@@ -553,7 +553,7 @@ func blockPartition[T constraints.Ordered](list []T) int {
 			a int
 			b int
 		}
-		for r-l > blockSize*2-1 {
+		if r-l >= blockSize*2 {
 			if ml.a == ml.b {
 				ml.a, ml.b = 0, 0
 				for i := 0; i < blockSize; i++ {
