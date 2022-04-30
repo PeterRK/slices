@@ -541,8 +541,8 @@ func blockPartition[T constraints.Ordered](list []T) int {
 			if l >= r {
 				goto finish
 			}
-			list[l], list[r] = list[r], list[l]
-			if (pattern&2) == 0 && list[l] != list[r] {
+			if list[l] != list[r] {
+				list[l], list[r] = list[r], list[l]
 				pattern |= 2
 			}
 			l++
@@ -647,8 +647,8 @@ func blockPartition[T constraints.Ordered](list []T) int {
 		if l >= r {
 			break
 		}
-		list[l], list[r] = list[r], list[l]
-		if (pattern&2) == 0 && list[l] != list[r] {
+		if list[l] != list[r] {
+			list[l], list[r] = list[r], list[l]
 			pattern |= 2
 		}
 		l++
