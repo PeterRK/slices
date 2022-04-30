@@ -684,10 +684,11 @@ finish:
 	return l
 }
 
+
 // no codegen
 func blockIntroSort[T constraints.Ordered](list []T, chance int) {
 	// blockPartition doesn't work well on all patterns, fallback if necessary
-	for skewed := false; len(list) > 360; {
+	for skew := 0; (skew&7) != 7 && len(list) > 360; {
 		if chance--; chance < 0 {
 			heapSort(list)
 			return
@@ -696,25 +697,16 @@ func blockIntroSort[T constraints.Ordered](list []T, chance int) {
 		if m < 0 {
 			return
 		}
-		s := len(list) / 8
-		if m < s {
-			blockIntroSort(list[:m], chance)
-			list = list[m:]
-			if skewed {
-				break
-			}
-			skewed = true
-		} else {
+		if m > len(list)/2 {
 			blockIntroSort(list[m:], chance)
 			list = list[:m]
-			if m > 7*s {
-				if skewed {
-					break
-				}
-				skewed = true
-			} else {
-				skewed = false
-			}
+		} else {
+			blockIntroSort(list[:m], chance)
+			list = list[m:]
+		}
+		skew <<= 1
+		if m > len(list)*3/4 {
+			skew |= 1
 		}
 	}
 	introSort(list, chance)
