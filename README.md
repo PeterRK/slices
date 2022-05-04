@@ -31,7 +31,7 @@ func SortStableFunc[E any](list []E, less func(a, b E) bool)
 ```
 
 ## [Benchmark](https://gist.github.com/PeterRK/7faec0e10e82effb57c2b07e890a6f45) Result on Xeon-8374C
-This algorithm runs fast in many cases, but pdqsort is too fast for sorted list. 
+This algorithm runs fast in many cases, but pdqsort is too fast for sorted list. Usually, sorted list is handled well enough, won't be the bottleneck. We should pay more attention to general cases. 
 
 ### Compared to generic pdqsort in golang.org/x/exp/slices
 ```
