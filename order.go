@@ -83,7 +83,7 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 		if footprint > 64 {
 			footprint = 64 //most common cache line size
 		}
-		footprint +=  wordSize
+		footprint += wordSize
 		// movement is cheap for small data
 		// random access is expensive for big data
 		noRefSort := elemSize*len(list) < 1024 ||

@@ -5,8 +5,8 @@
 package slices
 
 import (
-	"golang.org/x/exp/constraints"
 	"fmt"
+	"golang.org/x/exp/constraints"
 	"math"
 	"math/rand"
 	"strconv"
