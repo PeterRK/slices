@@ -498,36 +498,26 @@ func cmpGT[T constraints.Ordered](a, b T) int {
 func blockPartition[T constraints.Ordered](list []T) int {
 	size := len(list)
 	x, s := size/2, size-1
-	var a, m, b int
+	_, m, _ := sortIndex3(list, 0, x, s)
 	if size > 128 {
 		y, z := size/4, size/8
-		_, m, _ = sortIndex3(list, 1, x, s-1)
-		_, a, _ = sortIndex3(list, x-y, x-1, x+z)
-		_, b, _ = sortIndex3(list, x-z, x+1, x+y)
-		a, m, b = sortIndex3(list, a, m, b)
-	} else {
-		a, m, b = sortIndex3(list, x-1, x, x+1)
-	}
-	if list[0] > list[s] {
-		// may convert descent array to ascent array
-		list[0], list[s] = list[s], list[0]
+		_, a, _ := sortIndex3(list, z, y, x-z)
+		_, b, _ := sortIndex3(list, s-z, s-y, x+z)
+		_, m, _ = sortIndex3(list, a, m, b)
 	}
 
 	pivot := list[m]
-	list[0], list[a] = list[a], list[0]
-	list[s], list[b] = list[b], list[s]
-
-	l, r := 1, s-1
 	pattern := 0 // try to detect ascent, descent, constant
 	// 0: constant
 	// 1: partitioned, maybe ascent
 	// 2: reverse partitioned, maybe descent
 	// 3: unordered
 
+	l, r := 0, s
 	// with branch elimination
 	// complicatied but fast in some superscalar machine
 	const blockSize = 64
-	if r-l >= blockSize*2 {
+	if s >= blockSize*2 {
 		// branch elimination may be faster only in unordered pattern
 		for pattern != 3 {
 			for list[l] < pivot {
@@ -661,28 +651,17 @@ finish:
 		// list[0] <= pivot <= list[s]
 		// values in list[1:s-1] are all pivot
 		return -1
-	} else if pattern == 1 {
-		if a < l && l <= b {
-			// rollback then check
-			list[0], list[a] = list[a], list[0]
-			list[s], list[b] = list[b], list[s]
-			for i := 0; i < s; i++ {
-				if list[i] > list[i+1] {
-					return l
-				}
+	} else { // pattern == 1 || pattern == 2
+		for i := 0; i < s; i++ {
+			if list[i] > list[i+1] {
+				return l
 			}
-			return -1
 		}
-	} else if pattern == 2 {
-		// fix up to make ascent sub-arrays if orign array is descent
-		if list[l] == pivot {
-			list[s], list[l+1] = list[l+1], list[s]
-		} else if list[r] == pivot {
-			list[0], list[r-1] = list[r-1], list[0]
-		}
+		return -1
 	}
 	return l
 }
+
 
 // no codegen
 func blockIntroSort[T constraints.Ordered](list []T, chance int) {
