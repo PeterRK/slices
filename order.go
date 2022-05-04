@@ -79,10 +79,11 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 	} else if od.Less == nil || !isSmallUnit[E]() {
 		elemSize := int(unsafe.Sizeof(list[0]))
 		wordSize := int(unsafe.Sizeof(uintptr(0)))
-		footprint := elemSize + wordSize
+		footprint := elemSize
 		if footprint > 64 {
-			footprint = 64
+			footprint = 64 //most common cache line size
 		}
+		footprint +=  wordSize
 		// movement is cheap for small data
 		// random access is expensive for big data
 		noRefSort := elemSize*len(list) < 1024 ||
