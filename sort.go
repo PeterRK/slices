@@ -78,7 +78,20 @@ func Sort[E constraints.Ordered](list []E) {
 
 func sort[E constraints.Ordered](list []E) {
 	chance := log2Ceil(uint(len(list))) * 3 / 2
-	introSortEx(list, chance)
+	if len(list) > 50 {
+		m := partition(list) //partern detection
+		if m < 0 {
+			return
+		}
+		if m > len(list)/2 {
+			introSort(list[m:], chance)
+			list = list[:m]
+		} else {
+			introSort(list[:m], chance)
+			list = list[m:]
+		}
+	}
+	introSort(list, chance)
 }
 
 // StableSort sorts data while keeping the original order of equal elements.
@@ -169,6 +182,83 @@ func heapDown[E constraints.Ordered](list []E, pos int) {
 		list[pos], pos = list[kid], kid
 	}
 	list[pos] = curr
+}
+
+func sortIndex3[E constraints.Ordered](list []E, a, b, c int) (int, int, int) {
+	// keep stable
+	if less(list[b], list[a]) {
+		if less(list[c], list[b]) {
+			return c, b, a
+		} else if less(list[c], list[a]) {
+			return b, c, a
+		} else {
+			return b, a, c
+		}
+	} else {
+		if less(list[c], list[a]) {
+			return c, a, b
+		} else if less(list[c], list[b]) {
+			return a, c, b
+		} else {
+			return a, b, c
+		}
+	}
+}
+
+func partition[E constraints.Ordered](list []E) int {
+	size := len(list)
+	x, s := size/2, size-1
+	_, m, _ := sortIndex3(list, 0, x, s)
+	if size > 128 {
+		y, z := size/4, size/8
+		_, a, _ := sortIndex3(list, z, y, x-z)
+		_, b, _ := sortIndex3(list, s-z, s-y, x+z)
+		_, m, _ = sortIndex3(list, a, m, b)
+	}
+
+	pivot := list[m]
+	pattern := 0 // try to detect ascent, descent, constant
+	// 0: constant
+	// 1: partitioned, maybe ascent
+	// 2: reverse partitioned, maybe descent
+	// 3: unordered
+
+	l, r := 0, s
+	for {
+		for less(list[l], pivot) {
+			l++
+			pattern |= 1
+		}
+		for less(pivot, list[r]) {
+			r--
+			pattern |= 1
+		}
+		if l >= r {
+			break
+		}
+		list[l], list[r] = list[r], list[l]
+		if (pattern&2) == 0 && less(list[l], list[r]) {
+			pattern |= 2
+		}
+		l++
+		r--
+	}
+
+	if pattern == 3 {
+		// common case
+	} else if pattern == 0 {
+		// list[0] <= pivot <= list[s]
+		// values in list[1:s-1] are all pivot
+		return -1
+	} else { // pattern == 1 || pattern == 2
+		for i := 0; i < s; i++ {
+			if less(list[i+1], list[i]) {
+				return l
+			}
+		}
+		return -1
+	}
+	return l
 }
 
 // Sort 5 elemnt in list with 7 comparison.
@@ -313,99 +403,6 @@ func introSort[E constraints.Ordered](list []E, chance int) {
 		list = list[l+1 : r]
 	}
 	simpleSort(list)
-}
-
-const (
-	equalHint  uint8 = 1 << iota //elements in middle part are equal
-	sortedHint                   //left and right parts may be sorted
-)
-
-// Like triPartition without optimization for guide elements
-// Try to detect sorted patterns and quit early
-func triPartitionEx[E constraints.Ordered](list []E) (l, r int, hint uint8) {
-	size := len(list)
-	m, s := size/2, size/4
-	_, l, _, r, _ = sortIndex5(list, m-s, m-1, m, m+1, m+s)
-
-	pivotL, pivotR := list[l], list[r]
-
-	swapped := 0
-	l, r = 0, size-1
-	for {
-		for less(list[l], pivotL) {
-			l++
-		}
-		for less(pivotR, list[r]) {
-			r--
-		}
-		if less(pivotR, list[l]) {
-			swapped++
-			list[l], list[r] = list[r], list[l]
-			r--
-			if less(list[l], pivotL) {
-				l++
-				continue
-			}
-		}
-		break
-	}
-	if swapped == 0 || swapped == l+1 {
-		hint |= sortedHint
-	}
-
-	for k := l + 1; k <= r; k++ {
-		if less(pivotR, list[k]) {
-			for less(pivotR, list[r]) {
-				r--
-			}
-			if k >= r {
-				break
-			}
-			if less(list[r], pivotL) {
-				hint &= ^sortedHint
-				list[l], list[k], list[r] = list[r], list[l], list[k]
-				l++
-			} else {
-				list[k], list[r] = list[r], list[k]
-			}
-			r--
-		} else if less(list[k], pivotL) {
-			hint &= ^sortedHint
-			list[k], list[l] = list[l], list[k]
-			l++
-		}
-	}
-
-	if !less(pivotL, pivotR) {
-		hint |= equalHint
-	}
-	return l, r, hint
-}
-
-func introSortEx[E constraints.Ordered](list []E, chance int) {
-	for len(list) > 360 {
-		if chance--; chance < 0 {
-			heapSort(list)
-			return
-		}
-		l, r, hint := triPartitionEx(list)
-		if (hint & sortedHint) != 0 {
-			if !isSorted(list[:l]) {
-				introSortEx(list[:l], chance)
-			}
-			if !isSorted(list[r+1:]) {
-				introSortEx(list[r+1:], chance)
-			}
-		} else {
-			introSortEx(list[:l], chance)
-			introSortEx(list[r+1:], chance)
-		}
-		if (hint & equalHint) != 0 {
-			return
-		}
-		list = list[l : r+1]
-	}
-	introSort(list, chance)
 }
 
 // symmerge merges the two sorted subsequences data[a:m] and data[m:b] using
