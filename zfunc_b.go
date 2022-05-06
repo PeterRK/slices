@@ -30,7 +30,7 @@ func (lt refLessFunc[E]) isSorted(list []E) bool {
 
 func (lt refLessFunc[E]) sort(list []E) {
 	chance := log2Ceil(uint(len(list))) * 3 / 2
-	lt.introSort(list, chance)
+	lt.introSortEx(list, chance)
 }
 
 func (lt refLessFunc[E]) sortStable(list []E, inplace bool) {
@@ -249,6 +249,92 @@ func (lt refLessFunc[E]) introSort(list []E, chance int) {
 		list = list[l+1 : r]
 	}
 	lt.simpleSort(list)
+}
+
+func (lt refLessFunc[E]) triPartitionEx(list []E) (l, r int, hint uint8) {
+	size := len(list)
+	m, s := size/2, size/4
+	_, l, _, r, _ = lt.sortIndex5(list, m-s, m-1, m, m+1, m+s)
+
+	pivotL, pivotR := list[l], list[r]
+
+	swapped := 0
+	l, r = 0, size-1
+	for {
+		for lt(&list[l], &pivotL) {
+			l++
+		}
+		for lt(&pivotR, &list[r]) {
+			r--
+		}
+		if lt(&pivotR, &list[l]) {
+			swapped++
+			list[l], list[r] = list[r], list[l]
+			r--
+			if lt(&list[l], &pivotL) {
+				l++
+				continue
+			}
+		}
+		break
+	}
+	if swapped == 0 || swapped == l+1 {
+		hint |= sortedHint
+	}
+
+	for k := l + 1; k <= r; k++ {
+		if lt(&pivotR, &list[k]) {
+			for lt(&pivotR, &list[r]) {
+				r--
+			}
+			if k >= r {
+				break
+			}
+			if lt(&list[r], &pivotL) {
+				hint &= ^sortedHint
+				list[l], list[k], list[r] = list[r], list[l], list[k]
+				l++
+			} else {
+				list[k], list[r] = list[r], list[k]
+			}
+			r--
+		} else if lt(&list[k], &pivotL) {
+			hint &= ^sortedHint
+			list[k], list[l] = list[l], list[k]
+			l++
+		}
+	}
+
+	if !lt(&pivotL, &pivotR) {
+		hint |= equalHint
+	}
+	return l, r, hint
+}
+
+func (lt refLessFunc[E]) introSortEx(list []E, chance int) {
+	for len(list) > 360 {
+		if chance--; chance < 0 {
+			lt.heapSort(list)
+			return
+		}
+		l, r, hint := lt.triPartitionEx(list)
+		if (hint & sortedHint) != 0 {
+			if !lt.isSorted(list[:l]) {
+				lt.introSortEx(list[:l], chance)
+			}
+			if !lt.isSorted(list[r+1:]) {
+				lt.introSortEx(list[r+1:], chance)
+			}
+		} else {
+			lt.introSortEx(list[:l], chance)
+			lt.introSortEx(list[r+1:], chance)
+		}
+		if (hint & equalHint) != 0 {
+			return
+		}
+		list = list[l : r+1]
+	}
+	lt.introSort(list, chance)
 }
 
 func (lt refLessFunc[E]) symmerge(list []E, border int) {

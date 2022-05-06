@@ -73,16 +73,12 @@ func isSorted[E constraints.Ordered](list []E) bool {
 // It makes O(n*log(n)) calls to less function.
 // The sort is not guaranteed to be stable.
 func Sort[E constraints.Ordered](list []E) {
-	if branchEmilinatable[E]() {
-		blockIntroSort(list, log2Ceil(uint(len(list)))*2)
-	} else {
-		sort(list)
-	}
+	sort(list)
 }
 
 func sort[E constraints.Ordered](list []E) {
 	chance := log2Ceil(uint(len(list))) * 3 / 2
-	introSort(list, chance)
+	introSortEx(list, chance)
 }
 
 // StableSort sorts data while keeping the original order of equal elements.
@@ -319,6 +315,99 @@ func introSort[E constraints.Ordered](list []E, chance int) {
 	simpleSort(list)
 }
 
+const (
+	equalHint  uint8 = 1 << iota //elements in middle part are equal
+	sortedHint                   //left and right parts may be sorted
+)
+
+// Like triPartition without optimization for guide elements
+// Try to detect sorted patterns and quit early
+func triPartitionEx[E constraints.Ordered](list []E) (l, r int, hint uint8) {
+	size := len(list)
+	m, s := size/2, size/4
+	_, l, _, r, _ = sortIndex5(list, m-s, m-1, m, m+1, m+s)
+
+	pivotL, pivotR := list[l], list[r]
+
+	swapped := 0
+	l, r = 0, size-1
+	for {
+		for less(list[l], pivotL) {
+			l++
+		}
+		for less(pivotR, list[r]) {
+			r--
+		}
+		if less(pivotR, list[l]) {
+			swapped++
+			list[l], list[r] = list[r], list[l]
+			r--
+			if less(list[l], pivotL) {
+				l++
+				continue
+			}
+		}
+		break
+	}
+	if swapped == 0 || swapped == l+1 {
+		hint |= sortedHint
+	}
+
+	for k := l + 1; k <= r; k++ {
+		if less(pivotR, list[k]) {
+			for less(pivotR, list[r]) {
+				r--
+			}
+			if k >= r {
+				break
+			}
+			if less(list[r], pivotL) {
+				hint &= ^sortedHint
+				list[l], list[k], list[r] = list[r], list[l], list[k]
+				l++
+			} else {
+				list[k], list[r] = list[r], list[k]
+			}
+			r--
+		} else if less(list[k], pivotL) {
+			hint &= ^sortedHint
+			list[k], list[l] = list[l], list[k]
+			l++
+		}
+	}
+
+	if !less(pivotL, pivotR) {
+		hint |= equalHint
+	}
+	return l, r, hint
+}
+
+func introSortEx[E constraints.Ordered](list []E, chance int) {
+	for len(list) > 360 {
+		if chance--; chance < 0 {
+			heapSort(list)
+			return
+		}
+		l, r, hint := triPartitionEx(list)
+		if (hint & sortedHint) != 0 {
+			if !isSorted(list[:l]) {
+				introSortEx(list[:l], chance)
+			}
+			if !isSorted(list[r+1:]) {
+				introSortEx(list[r+1:], chance)
+			}
+		} else {
+			introSortEx(list[:l], chance)
+			introSortEx(list[r+1:], chance)
+		}
+		if (hint & equalHint) != 0 {
+			return
+		}
+		list = list[l : r+1]
+	}
+	introSort(list, chance)
+}
+
 // symmerge merges the two sorted subsequences data[a:m] and data[m:b] using
 // the symmerge algorithm from Pok-Son Kim and Arne Kutzner, "Stable Minimum
 // Storage Merging by Symmetric Comparisons", in Susanne Albers and Tomasz
@@ -456,237 +545,4 @@ func mergeSort[E constraints.Ordered](a, b []E) {
 			j++
 		}
 	}
-}
-
-// no codegen
-func sortIndex3[T constraints.Ordered](list []T, a, b, c int) (int, int, int) {
-	// keep stable
-	if list[a] > list[b] {
-		if list[b] > list[c] {
-			return c, b, a
-		} else if list[a] > list[c] {
-			return b, c, a
-		} else {
-			return b, a, c
-		}
-	} else {
-		if list[a] > list[c] {
-			return c, a, b
-		} else if list[b] > list[c] {
-			return a, c, b
-		} else {
-			return a, b, c
-		}
-	}
-}
-
-// no codegen
-// return int instead of bool
-// should be inlined
-func cmpGT[T constraints.Ordered](a, b T) int {
-	if a > b {
-		return 1
-	} else {
-		return 0
-	}
-}
-
-// no codegen
-// the block partition algorithm from Edelkamp, Stefan, and Armin Weiß.
-// "Blockquicksort: Avoiding branch mispredictions in quicksort."
-// Journal of Experimental Algorithmics (JEA) 24 (2019): 1-22.
-func blockPartition[T constraints.Ordered](list []T) int {
-	size := len(list)
-	x, s := size/2, size-1
-	_, m, _ := sortIndex3(list, 0, x, s)
-	if size > 128 {
-		y, z := size/4, size/8
-		_, a, _ := sortIndex3(list, z, y, x-z)
-		_, b, _ := sortIndex3(list, s-z, s-y, x+z)
-		_, m, _ = sortIndex3(list, a, m, b)
-	}
-
-	pivot := list[m]
-	pattern := 0 // try to detect ascent, descent, constant
-	// 0: constant
-	// 1: partitioned, maybe ascent
-	// 2: reverse partitioned, maybe descent
-	// 3: unordered
-
-	l, r := 0, s
-	// with branch elimination
-	// complicatied but fast in some superscalar machine
-	const blockSize = 64
-	if s >= blockSize*2 {
-		// branch elimination may be faster only in unordered pattern
-		for pattern != 3 {
-			for list[l] < pivot {
-				l++
-				pattern |= 1
-			}
-			for list[r] > pivot {
-				r--
-				pattern |= 1
-			}
-			if l >= r {
-				goto finish
-			}
-			list[l], list[r] = list[r], list[l]
-			if (pattern&2) == 0 && list[l] != list[r] {
-				pattern |= 2
-			}
-			l++
-			r--
-		}
-		var ml, mr struct {
-			v [blockSize]uint8
-			a int
-			b int
-		}
-		if r-l >= blockSize*2 {
-			if ml.a == ml.b {
-				ml.a, ml.b = 0, 0
-				for i := 0; i < blockSize; i++ {
-					ml.v[ml.b] = uint8(i)
-					ml.b += cmpGT(list[l+i], pivot)
-				}
-			}
-			if mr.a == mr.b {
-				mr.a, mr.b = 0, 0
-				for i := 0; i < blockSize; i++ {
-					mr.v[mr.b] = uint8(i)
-					mr.b += cmpGT(pivot, list[r-i])
-				}
-			}
-			sz := ml.b - ml.a
-			if t := mr.b - mr.a; t < sz {
-				sz = t
-			}
-			for i := 0; i < sz; i++ {
-				ll := l + int(ml.v[ml.a])
-				ml.a++
-				rr := r - int(mr.v[mr.a])
-				mr.a++
-				list[ll], list[rr] = list[rr], list[ll]
-			}
-			if ml.a == ml.b {
-				l += blockSize
-			}
-			if mr.a == mr.b {
-				r -= blockSize
-			}
-		}
-		if ml.a != ml.b {
-			for {
-				for list[r] > pivot {
-					r--
-				}
-				ll := l + int(ml.v[ml.a])
-				// list[r] <= pivot
-				// list[r+1] > pivot
-				if ll >= r {
-					return r + 1
-				}
-				list[ll], list[r] = list[r], list[ll]
-				r--
-				// list[r] ?
-				// list[r+1] >= pivot
-				if ml.a++; ml.a == ml.b {
-					l += blockSize
-					if l > r {
-						return r + 1
-					}
-					break
-				}
-			}
-		} else if mr.a != mr.b {
-			for {
-				for list[l] < pivot {
-					l++
-				}
-				rr := r - int(mr.v[mr.a])
-				// list[l] >= pivot
-				// list[l-1] < pivot
-				if l >= rr {
-					return l
-				}
-				list[l], list[rr] = list[rr], list[l]
-				l++
-				// list[l] ?
-				// list[l-1] <= pivot
-				if mr.a++; mr.a == mr.b {
-					r -= blockSize
-					if l > r {
-						return l
-					}
-					break
-				}
-			}
-		}
-	}
-
-	for {
-		for list[l] < pivot {
-			l++
-			pattern |= 1
-		}
-		for list[r] > pivot {
-			r--
-			pattern |= 1
-		}
-		if l >= r {
-			break
-		}
-		list[l], list[r] = list[r], list[l]
-		if (pattern&2) == 0 && list[l] != list[r] {
-			pattern |= 2
-		}
-		l++
-		r--
-	}
-finish:
-	if pattern == 3 {
-		// common case
-	} else if pattern == 0 {
-		// list[0] <= pivot <= list[s]
-		// values in list[1:s-1] are all pivot
-		return -1
-	} else { // pattern == 1 || pattern == 2
-		for i := 0; i < s; i++ {
-			if list[i] > list[i+1] {
-				return l
-			}
-		}
-		return -1
-	}
-	return l
-}
-
-
-// no codegen
-func blockIntroSort[T constraints.Ordered](list []T, chance int) {
-	// blockPartition doesn't work well on all patterns, fallback if necessary
-	for skew := 0; (skew&7) != 7 && len(list) > 360; {
-		if chance--; chance < 0 {
-			heapSort(list)
-			return
-		}
-		m := blockPartition(list)
-		if m < 0 {
-			return
-		}
-		sz := len(list)
-		if m > sz/2 {
-			blockIntroSort(list[m:], chance)
-			list = list[:m]
-		} else {
-			blockIntroSort(list[:m], chance)
-			list = list[m:]
-		}
-		skew <<= 1
-		if len(list) > sz*3/4 {
-			skew |= 1
-		}
-	}
-	introSort(list, chance)
 }
