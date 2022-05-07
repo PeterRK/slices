@@ -65,6 +65,14 @@ func (od *Order[E]) SortStable(list []E) {
 	od.SortWithOption(list, true, false)
 }
 
+var cacheInfo = struct {
+	lineSize  int
+	available int
+}{
+	lineSize:  64,         //most common cache line size
+	available: 256 * 1024, //available bytes for sort
+}
+
 // The general sort function.
 // Guarantee stability when stable flag is set.
 // Avoid allocating O(n) size extra memory when inplace flag is set.
@@ -80,14 +88,14 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 		elemSize := int(unsafe.Sizeof(list[0]))
 		wordSize := int(unsafe.Sizeof(uintptr(0)))
 		footprint := elemSize
-		if footprint > 64 {
-			footprint = 64 //most common cache line size
+		if footprint > cacheInfo.lineSize {
+			footprint = cacheInfo.lineSize
 		}
 		footprint += wordSize
 		// movement is cheap for small data
 		// random access is expensive for big data
 		noRefSort := elemSize*len(list) < 1024 ||
-			footprint*len(list) > 256*1024
+			footprint*len(list) > cacheInfo.available
 		if stable {
 			if inplace {
 				refLessFunc[E](od.RefLess).sortStable(list, true)
