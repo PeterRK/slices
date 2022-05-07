@@ -102,7 +102,9 @@ func SortStable[E constraints.Ordered](list []E) {
 
 // Avoid allocating O(n) size extra memory when inplace flag is set.
 func sortStable[E constraints.Ordered](list []E, inplace bool) {
-	if size := len(list); inplace {
+	if size := len(list); size < 16 {
+		simpleSort(list)
+	} else if inplace {
 		step := 8
 		a, b := 0, step
 		for b <= size {
@@ -124,8 +126,6 @@ func sortStable[E constraints.Ordered](list []E, inplace bool) {
 			}
 			step *= 2
 		}
-	} else if size < 16 {
-		simpleSort(list)
 	} else {
 		temp := make([]E, size)
 		copy(temp, list)

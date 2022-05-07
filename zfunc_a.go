@@ -47,7 +47,9 @@ func (lt lessFunc[E]) sort(list []E) {
 }
 
 func (lt lessFunc[E]) sortStable(list []E, inplace bool) {
-	if size := len(list); inplace {
+	if size := len(list); size < 16 {
+		lt.simpleSort(list)
+	} else if inplace {
 		step := 8
 		a, b := 0, step
 		for b <= size {
@@ -69,8 +71,6 @@ func (lt lessFunc[E]) sortStable(list []E, inplace bool) {
 			}
 			step *= 2
 		}
-	} else if size < 16 {
-		lt.simpleSort(list)
 	} else {
 		temp := make([]E, size)
 		copy(temp, list)
