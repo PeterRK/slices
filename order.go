@@ -101,15 +101,13 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 				refLessFunc[E](od.RefLess).sortStable(list, true)
 				return
 			}
-			if elemSize <= wordSize*2 || noRefSort {
+			if noRefSort {
 				refLessFunc[E](od.RefLess).sortStable(list, false)
 				return
 			}
 		} else if elemSize <= wordSize*4 || noRefSort || inplace {
 			//slower than ref mode, but no extra allocation
 			refLessFunc[E](od.RefLess).sort(list)
-			return
-		} else if len(list) < 2 {
 			return
 		}
 
