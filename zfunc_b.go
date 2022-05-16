@@ -29,21 +29,71 @@ func (lt refLessFunc[E]) isSorted(list []E) bool {
 }
 
 func (lt refLessFunc[E]) sort(list []E) {
-	chance := log2Ceil(uint(len(list))) * 3 / 2
-	if len(list) > 50 {
-		m := lt.partition(list)
-		if m < 0 {
+	size := len(list)
+	chance := log2Ceil(uint(size)) * 3 / 2
+	if size > 50 {
+		a, b, c := size/4, size/2, size*3/4
+		a, ha := lt.median(list, a-1, a, a+1)
+		b, hb := lt.median(list, b-1, b, b+1)
+		c, hc := lt.median(list, c-1, c, c+1)
+		m, hint := lt.median(list, a, b, c)
+		hint &= ha & hb & hc
+
+		pivot := list[m]
+		if hint == hintRevered {
+			reverse(list)
+			hint = hintSorted
+		}
+		if hint == hintSorted && lt.isSorted(list) {
 			return
 		}
-		if m > len(list)/2 {
-			lt.introSort(list[m:], chance)
-			list = list[:m]
+
+		l, r := 0, size-1
+		for {
+			for lt(&list[l], &pivot) {
+				l++
+			}
+			for lt(&pivot, &list[r]) {
+				r--
+			}
+			if l >= r {
+				break
+			}
+			list[l], list[r] = list[r], list[l]
+			l++
+			r--
+		}
+
+		if l > size/2 {
+			lt.introSort(list[l:], chance)
+			list = list[:l]
 		} else {
-			lt.introSort(list[:m], chance)
-			list = list[m:]
+			lt.introSort(list[:l], chance)
+			list = list[l:]
 		}
 	}
 	lt.introSort(list, chance)
+}
+
+func (lt refLessFunc[E]) median(list []E, a, b, c int) (int, uint8) {
+
+	if lt(&list[b], &list[a]) {
+		if lt(&list[c], &list[b]) {
+			return b, hintRevered
+		} else if lt(&list[c], &list[a]) {
+			return c, 0
+		} else {
+			return a, 0
+		}
+	} else {
+		if lt(&list[c], &list[a]) {
+			return a, 0
+		} else if lt(&list[c], &list[b]) {
+			return c, 0
+		} else {
+			return b, hintSorted
+		}
+	}
 }
 
 func (lt refLessFunc[E]) sortStable(list []E, inplace bool) {
@@ -126,78 +176,6 @@ func (lt refLessFunc[E]) heapDown(list []E, pos int) {
 		list[pos], pos = list[kid], kid
 	}
 	list[pos] = curr
-}
-
-func (lt refLessFunc[E]) sortIndex3(list []E, a, b, c int) (int, int, int) {
-
-	if lt(&list[b], &list[a]) {
-		if lt(&list[c], &list[b]) {
-			return c, b, a
-		} else if lt(&list[c], &list[a]) {
-			return b, c, a
-		} else {
-			return b, a, c
-		}
-	} else {
-		if lt(&list[c], &list[a]) {
-			return c, a, b
-		} else if lt(&list[c], &list[b]) {
-			return a, c, b
-		} else {
-			return a, b, c
-		}
-	}
-}
-
-func (lt refLessFunc[E]) partition(list []E) int {
-	size := len(list)
-	x, s := size/2, size-1
-	_, m, _ := lt.sortIndex3(list, 0, x, s)
-	if size > 128 {
-		y, z := size/4, size/8
-		_, a, _ := lt.sortIndex3(list, z, y, x-z)
-		_, b, _ := lt.sortIndex3(list, s-z, s-y, x+z)
-		_, m, _ = lt.sortIndex3(list, a, m, b)
-	}
-
-	pivot := list[m]
-	pattern := 0
-
-	l, r := 0, s
-	for {
-		for lt(&list[l], &pivot) {
-			l++
-			pattern |= 1
-		}
-		for lt(&pivot, &list[r]) {
-			r--
-			pattern |= 1
-		}
-		if l >= r {
-			break
-		}
-		list[l], list[r] = list[r], list[l]
-		if (pattern&2) == 0 && lt(&list[l], &list[r]) {
-			pattern |= 2
-		}
-		l++
-		r--
-	}
-
-	if pattern == 3 {
-
-	} else if pattern == 0 {
-
-		return -1
-	} else {
-		for i := 0; i < s; i++ {
-			if lt(&list[i+1], &list[i]) {
-				return l
-			}
-		}
-		return -1
-	}
-	return l
 }
 
 func (lt refLessFunc[E]) sortIndex5(list []E,

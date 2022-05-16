@@ -77,21 +77,76 @@ func Sort[E constraints.Ordered](list []E) {
 }
 
 func sort[E constraints.Ordered](list []E) {
-	chance := log2Ceil(uint(len(list))) * 3 / 2
-	if len(list) > 50 {
-		m := partition(list) //partern detection
-		if m < 0 {
+	size := len(list)
+	chance := log2Ceil(uint(size)) * 3 / 2
+	if size > 50 {
+		a, b, c := size/4, size/2, size*3/4
+		a, ha := median(list, a-1, a, a+1)
+		b, hb := median(list, b-1, b, b+1)
+		c, hc := median(list, c-1, c, c+1)
+		m, hint := median(list, a, b, c)
+		hint &= ha & hb & hc
+
+		pivot := list[m]
+		if hint == hintRevered {
+			reverse(list)
+			hint = hintSorted
+		}
+		if hint == hintSorted && isSorted(list) {
 			return
 		}
-		if m > len(list)/2 {
-			introSort(list[m:], chance)
-			list = list[:m]
+
+		l, r := 0, size-1
+		for {
+			for less(list[l], pivot) {
+				l++
+			}
+			for less(pivot, list[r]) {
+				r--
+			}
+			if l >= r {
+				break
+			}
+			list[l], list[r] = list[r], list[l]
+			l++
+			r--
+		}
+
+		if l > size/2 {
+			introSort(list[l:], chance)
+			list = list[:l]
 		} else {
-			introSort(list[:m], chance)
-			list = list[m:]
+			introSort(list[:l], chance)
+			list = list[l:]
 		}
 	}
 	introSort(list, chance)
+}
+
+const (
+	hintSorted uint8 = 1 << iota
+	hintRevered
+)
+
+func median[E constraints.Ordered](list []E, a, b, c int) (int, uint8) {
+	// keep stable
+	if less(list[b], list[a]) {
+		if less(list[c], list[b]) {
+			return b, hintRevered //c, b, a
+		} else if less(list[c], list[a]) {
+			return c, 0 //b, c, a
+		} else {
+			return a, 0 //b, a, c
+		}
+	} else {
+		if less(list[c], list[a]) {
+			return a, 0 //c, a, b
+		} else if less(list[c], list[b]) {
+			return c, 0 //a, c, b
+		} else {
+			return b, hintSorted //a, b, c
+		}
+	}
 }
 
 // StableSort sorts data while keeping the original order of equal elements.
@@ -182,83 +237,6 @@ func heapDown[E constraints.Ordered](list []E, pos int) {
 		list[pos], pos = list[kid], kid
 	}
 	list[pos] = curr
-}
-
-func sortIndex3[E constraints.Ordered](list []E, a, b, c int) (int, int, int) {
-	// keep stable
-	if less(list[b], list[a]) {
-		if less(list[c], list[b]) {
-			return c, b, a
-		} else if less(list[c], list[a]) {
-			return b, c, a
-		} else {
-			return b, a, c
-		}
-	} else {
-		if less(list[c], list[a]) {
-			return c, a, b
-		} else if less(list[c], list[b]) {
-			return a, c, b
-		} else {
-			return a, b, c
-		}
-	}
-}
-
-func partition[E constraints.Ordered](list []E) int {
-	size := len(list)
-	x, s := size/2, size-1
-	_, m, _ := sortIndex3(list, 0, x, s)
-	if size > 128 {
-		y, z := size/4, size/8
-		_, a, _ := sortIndex3(list, z, y, x-z)
-		_, b, _ := sortIndex3(list, s-z, s-y, x+z)
-		_, m, _ = sortIndex3(list, a, m, b)
-	}
-
-	pivot := list[m]
-	pattern := 0 // try to detect ascent, descent, constant
-	// 0: constant
-	// 1: partitioned, maybe ascent
-	// 2: reverse partitioned, maybe descent
-	// 3: unordered
-
-	l, r := 0, s
-	for {
-		for less(list[l], pivot) {
-			l++
-			pattern |= 1
-		}
-		for less(pivot, list[r]) {
-			r--
-			pattern |= 1
-		}
-		if l >= r {
-			break
-		}
-		list[l], list[r] = list[r], list[l]
-		if (pattern&2) == 0 && less(list[l], list[r]) {
-			pattern |= 2
-		}
-		l++
-		r--
-	}
-
-	if pattern == 3 {
-		// common case
-	} else if pattern == 0 {
-		// list[0] <= pivot <= list[s]
-		// values in list[1:s-1] are all pivot
-		return -1
-	} else { // pattern == 1 || pattern == 2
-		for i := 0; i < s; i++ {
-			if less(list[i+1], list[i]) {
-				return l
-			}
-		}
-		return -1
-	}
-	return l
 }
 
 // Sort 5 elemnt in list with 7 comparison.
