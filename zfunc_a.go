@@ -1,12 +1,12 @@
 // Code generated from sort.go using genzfunc.go; DO NOT EDIT.
 
-// Copyright 2021 The Go Authors. All rights reserved.
+// Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package slices
 
-func (lt lessFunc[E]) binarySearch(list []E, x E) int {
+func (lt lessFunc[E]) binarySearch(list []E, x E) (int, bool) {
 	a, b := 0, len(list)
 	for a < b {
 		m := int(uint(a+b) / 2)
@@ -16,7 +16,10 @@ func (lt lessFunc[E]) binarySearch(list []E, x E) int {
 			b = m
 		}
 	}
-	return a
+	if a >= len(list) || lt(x, list[a]) {
+		return a, false
+	}
+	return a, true
 }
 
 func (lt lessFunc[E]) isSorted(list []E) bool {
@@ -28,7 +31,7 @@ func (lt lessFunc[E]) isSorted(list []E) bool {
 	return true
 }
 
-func (lt lessFunc[E]) sort(list []E) {
+func (lt lessFunc[E]) sortFast(list []E) {
 	size := len(list)
 	chance := log2Ceil(uint(size)) * 3 / 2
 	if size > 50 {

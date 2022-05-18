@@ -1,10 +1,10 @@
-// Copyright 2021 The Go Authors. All rights reserved.
+// Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 //go:build ignore
 
-// This program is run via "go generate" (via a directive in sort.go)
+// This program is run via "go generate" (via a directive in sort_ordered.go)
 // to generate zfunc_a.go & zfunc_b.go.
 
 package main
@@ -24,7 +24,7 @@ var hackedFuncs = make(map[string]bool)
 
 func main() {
 	fset := token.NewFileSet()
-	af, err := parser.ParseFile(fset, "sort.go", nil, 0)
+	af, err := parser.ParseFile(fset, "sort_ordered.go", nil, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func rewriteCalls(n ast.Node) ast.Visitor {
 
 var header = `// Code generated from sort.go using genzfunc.go; DO NOT EDIT.
 
-// Copyright 2021 The Go Authors. All rights reserved.
+// Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 

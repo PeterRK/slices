@@ -2,7 +2,7 @@
 
 ## API for builtin types
 ```go
-func BinarySearch[E constraints.Ordered](list []E, x E) int
+func BinarySearch[E constraints.Ordered](list []E, x E) (int, bool)
 func IsSorted[E constraints.Ordered](list []E) bool
 func Sort[E constraints.Ordered](list []E)
 func SortStable[E constraints.Ordered](list []E)
@@ -15,7 +15,7 @@ type Order[E any] struct {
 	RefLess func(a, b *E) bool
 }
 
-func (od *Order[E]) BinarySearch(list []E, x E) int
+func (od *Order[E]) BinarySearch(list []E, x E) (int, bool)
 func (od *Order[E]) IsSorted(list []E) bool
 func (od *Order[E]) Sort(list []E)
 func (od *Order[E]) SortStable(list []E)
@@ -24,7 +24,7 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool)
 
 ## Func API for custom types
 ```go
-func BinarySearchFunc[E any](list []E, x E, less func(a, b E) bool) int
+func BinarySearchFunc[E any](list []E, x E, less func(a, b E) bool) (int, bool)
 func IsSortedFunc[E any](list []E, less func(a, b E) bool) bool
 func SortFunc[E any](list []E, less func(a, b E) bool)
 func SortStableFunc[E any](list []E, less func(a, b E) bool)
