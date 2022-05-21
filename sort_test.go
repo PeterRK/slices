@@ -356,9 +356,9 @@ func (o object) String() string {
 }
 
 func testSortObject(t *testing.T, stable, inplace bool) {
-	n := 100000
+	n := 10000
 	if testing.Short() {
-		n = 10000
+		n = 1000
 	}
 	data1 := make([]smallObject, n)
 	data2 := make([]bigObject, n)
