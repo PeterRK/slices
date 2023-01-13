@@ -31,8 +31,6 @@ func SortStableFunc[E any](list []E, less func(a, b E) bool)
 ```
 
 ## [Benchmark](https://gist.github.com/PeterRK/625e8fad081267d00e5f9e9f7a8e2084) Result on Xeon-8374C
-This algorithm runs fast in many cases, but pdqsort is too fast for sorted list. Usually, sorted list is handled well enough, won't be the bottleneck. We should pay more attention to general cases. 
-
 ### Compared to generic sort in golang.org/x/exp/slices
 ```
 name               exp time/op  new time/op  delta
@@ -88,7 +86,7 @@ Pointer/1M          180ms ± 1%   175ms ± 1%   -2.93%  (p=0.000 n=10+9)
 ```
 ### Compared to non-generic sort in stdlib
 ```
-name                 std time/op  new time/op  delta
+name               std time/op  new time/op  delta
 Int/Small-1K       49.7µs ± 1%  24.0µs ± 1%  -51.65%  (p=0.000 n=10+10)
 Int/Small-10K       584µs ± 0%   280µs ± 0%  -52.08%  (p=0.000 n=10+9)
 Int/Small-100K     6.95ms ± 0%  3.34ms ± 0%  -52.01%  (p=0.000 n=10+10)
