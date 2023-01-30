@@ -80,87 +80,86 @@ func blockPartition[E constraints.Ordered](list []E) int {
 	l, r := 0, size-1
 
 	const blockSize = 64
-	if r-l >= blockSize*2 {
-		var ml, mr struct {
-			v [blockSize]uint8
-			a int
-			b int
+	var ml, mr struct {
+		v [blockSize]uint8
+		a int
+		b int
+	}
+	for r-l >= blockSize*2 {
+		if ml.a == ml.b {
+			ml.a, ml.b = 0, 0
+			for i := 0; i < blockSize; i++ {
+				ml.v[ml.b] = uint8(i)
+				ml.b += compGE(list[l+i], pivot)
+			}
 		}
-		for r-l >= blockSize*2 {
-			if ml.a == ml.b {
-				ml.a, ml.b = 0, 0
-				for i := 0; i < blockSize; i++ {
-					ml.v[ml.b] = uint8(i)
-					ml.b += compGE(list[l+i], pivot)
-				}
+		if mr.a == mr.b {
+			mr.a, mr.b = 0, 0
+			for i := 0; i < blockSize; i++ {
+				mr.v[mr.b] = uint8(i)
+				mr.b += compGE(pivot, list[r-i])
 			}
-			if mr.a == mr.b {
-				mr.a, mr.b = 0, 0
-				for i := 0; i < blockSize; i++ {
-					mr.v[mr.b] = uint8(i)
-					mr.b += compGE(pivot, list[r-i])
-				}
+		}
+		sz := min(ml.b-ml.a, mr.b-mr.a)
+		for i := 0; i < sz; i++ {
+			ll := l + int(ml.v[ml.a])
+			ml.a++
+			rr := r - int(mr.v[mr.a])
+			mr.a++
+			list[ll], list[rr] = list[rr], list[ll]
+		}
+		if ml.a == ml.b {
+			l += blockSize
+		}
+		if mr.a == mr.b {
+			r -= blockSize
+		}
+	}
+	if ml.a != ml.b {
+		for {
+			for list[r] > pivot {
+				r--
 			}
-			sz := min(ml.b-ml.a, mr.b-mr.a)
-			for i := 0; i < sz; i++ {
-				ll := l + int(ml.v[ml.a])
-				ml.a++
-				rr := r - int(mr.v[mr.a])
-				mr.a++
-				list[ll], list[rr] = list[rr], list[ll]
+			ll := l + int(ml.v[ml.a])
+			// list[r] <= pivot
+			// list[r+1] > pivot
+			if ll >= r {
+				return r + 1
 			}
-			if ml.a == ml.b {
+			list[ll], list[r] = list[r], list[ll]
+			r--
+			// list[r] ?
+			// list[r+1] >= pivot
+			if ml.a++; ml.a == ml.b {
 				l += blockSize
-			}
-			if mr.a == mr.b {
-				r -= blockSize
-			}
-		}
-		if ml.a != ml.b {
-			for {
-				for list[r] > pivot {
-					r--
-				}
-				ll := l + int(ml.v[ml.a])
-				// list[r] <= pivot
-				// list[r+1] > pivot
-				if ll >= r {
+				if l > r {
 					return r + 1
 				}
-				list[ll], list[r] = list[r], list[ll]
-				r--
-				// list[r] ?
-				// list[r+1] >= pivot
-				if ml.a++; ml.a == ml.b {
-					l += blockSize
-					if l > r {
-						return r + 1
-					}
-					break
-				}
+				break
 			}
-		} else if mr.a != mr.b {
-			for {
-				for list[l] < pivot {
-					l++
-				}
-				rr := r - int(mr.v[mr.a])
-				// list[l] >= pivot
-				// list[l-1] < pivot
-				if l >= rr {
+		}
+	}
+	if mr.a != mr.b {
+		for {
+			for list[l] < pivot {
+				l++
+			}
+			rr := r - int(mr.v[mr.a])
+			// list[l] >= pivot
+			// list[l-1] < pivot
+			if l >= rr {
+				return l
+			}
+			list[l], list[rr] = list[rr], list[l]
+			l++
+			// list[l] ?
+			// list[l-1] <= pivot
+			if mr.a++; mr.a == mr.b {
+				r -= blockSize
+				if l > r {
 					return l
 				}
-				list[l], list[rr] = list[rr], list[l]
-				l++
-				// list[l] ?
-				// list[l-1] <= pivot
-				if mr.a++; mr.a == mr.b {
-					r -= blockSize
-					if l > r {
-						return l
-					}
-					break
-				}
+				break
 			}
 		}
 	}
