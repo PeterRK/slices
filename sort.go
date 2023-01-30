@@ -5,8 +5,9 @@
 package slices
 
 import (
-	"golang.org/x/exp/constraints"
 	"unsafe"
+
+	"golang.org/x/exp/constraints"
 )
 
 // Sort sorts a slice of any ordered type in ascending order.
@@ -15,7 +16,9 @@ import (
 // Use slices.SortFunc(x, func(a, b float64) bool {return a < b || (math.IsNaN(a) && !math.IsNaN(b))})
 // instead if the input may contain NaNs.
 func Sort[E constraints.Ordered](x []E) {
-	sortFast(x)
+	if !tryBlockIntroSort(x) {
+		sortFast(x)
+	}
 }
 
 // SortStable sorts the slice x while keeping the original order of equal
