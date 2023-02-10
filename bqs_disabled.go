@@ -6,6 +6,10 @@
 
 package slices
 
+import (
+	"golang.org/x/exp/constraints"
+)
+
 func tryBlockIntroSort[E constraints.Ordered](x []E) bool {
 	return false
 }
