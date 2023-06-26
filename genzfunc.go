@@ -1,4 +1,4 @@
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -35,8 +35,7 @@ func main() {
 	var newDecl []ast.Decl
 	for _, d := range af.Decls {
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok || fd.Recv != nil ||
-			fd.Name.Name == "less" || fd.Name.IsExported() ||
+		if !ok || fd.Recv != nil || fd.Name.IsExported() ||
 			fd.Type.TypeParams == nil || len(fd.Type.TypeParams.List) != 1 {
 			continue
 		}
@@ -60,15 +59,15 @@ func main() {
 	tpl := out.Bytes()
 
 	funcPtn := regexp.MustCompile(`\nfunc `)
-	lessPtn := regexp.MustCompile(`less\([^\),]+,[^\),]+\)`)
+	lessPtn := regexp.MustCompile(`cmp\.Less\([^\),]+,[^\),]+\)`)
 
 	src := funcPtn.ReplaceAll(tpl, []byte("\nfunc (lt lessFunc[E]) "))
 	src = lessPtn.ReplaceAllFunc(src, func(origin []byte) []byte {
-		out := make([]byte, len(origin)-2)
+		out := make([]byte, len(origin)-6)
 		out[0] = 'l'
 		out[1] = 't'
 		for i := 2; i < len(out); i++ {
-			out[i] = origin[i+2]
+			out[i] = origin[i+6]
 		}
 		return out
 	})
@@ -76,18 +75,18 @@ func main() {
 
 	src = funcPtn.ReplaceAll(tpl, []byte("\nfunc (lt refLessFunc[E]) "))
 	src = lessPtn.ReplaceAllFunc(src, func(origin []byte) []byte {
-		out := make([]byte, len(origin))
+		out := make([]byte, len(origin)-4)
 		out[0] = 'l'
 		out[1] = 't'
 		out[2] = '('
 		out[3] = '&'
-		pos := bytes.IndexByte(origin, ',')
+		pos := bytes.IndexByte(origin, ',') - 4
 		for i := 4; i < pos; i++ {
-			out[i] = origin[i+1]
+			out[i] = origin[i+5]
 		}
 		out[pos] = '&'
 		for i := pos + 1; i < len(out); i++ {
-			out[i] = origin[i]
+			out[i] = origin[i+4]
 		}
 		return out
 	})
@@ -111,7 +110,7 @@ func rewriteCalls(n ast.Node) ast.Visitor {
 
 var header = `// Code generated from sort.go using genzfunc.go; DO NOT EDIT.
 
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 

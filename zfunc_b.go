@@ -1,6 +1,6 @@
 // Code generated from sort.go using genzfunc.go; DO NOT EDIT.
 
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -29,6 +29,32 @@ func (lt refLessFunc[E]) isSorted(list []E) bool {
 		}
 	}
 	return true
+}
+
+func (lt refLessFunc[E]) findMin(list []E) E {
+	if len(list) < 1 {
+		panic("slices.Min: empty list")
+	}
+	m := list[0]
+	for i := 1; i < len(list); i++ {
+		if lt(&list[i], &m) {
+			m = list[i]
+		}
+	}
+	return m
+}
+
+func (lt refLessFunc[E]) findMax(list []E) E {
+	if len(list) < 1 {
+		panic("slices.Max: empty list")
+	}
+	m := list[0]
+	for i := 1; i < len(list); i++ {
+		if lt(&m, &list[i]) {
+			m = list[i]
+		}
+	}
+	return m
 }
 
 func (lt refLessFunc[E]) sortFast(list []E) {
@@ -375,7 +401,7 @@ func (lt refLessFunc[E]) symmerge(list []E, border int) {
 	b = n - a
 
 	if a < border && border < b {
-		rotate(list[a:b], border-a)
+		rotateLeft(list[a:b], border-a)
 	}
 	if 0 < a && a < half {
 		lt.symmerge(list[:half], a)

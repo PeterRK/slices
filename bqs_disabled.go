@@ -1,4 +1,4 @@
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,9 +7,9 @@
 package slices
 
 import (
-	"golang.org/x/exp/constraints"
+	"cmp"
 )
 
-func tryBlockIntroSort[E constraints.Ordered](x []E) bool {
+func tryBlockIntroSort[E cmp.Ordered](x []E) bool {
 	return false
 }

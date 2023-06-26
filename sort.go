@@ -1,70 +1,53 @@
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package slices
 
 import (
+	"cmp"
 	"unsafe"
-
-	"golang.org/x/exp/constraints"
 )
 
 // Sort sorts a slice of any ordered type in ascending order.
-// Sort may fail to sort correctly when sorting slices of floating-point
-// numbers containing Not-a-number (NaN) values.
-// Use slices.SortFunc(x, func(a, b float64) bool {return a < b || (math.IsNaN(a) && !math.IsNaN(b))})
-// instead if the input may contain NaNs.
-func Sort[E constraints.Ordered](x []E) {
-	if !tryBlockIntroSort(x) {
-		sortFast(x)
+// When sorting floating-point numbers, NaNs are ordered before other values.
+func Sort[E cmp.Ordered](list []E) {
+	if !tryBlockIntroSort(list) {
+		sortFast(listx)
 	}
 }
 
-// SortStable sorts the slice x while keeping the original order of equal
-func SortStable[E constraints.Ordered](x []E) {
-	sortStable(x, true)
-}
-
-// SortFunc sorts the slice x in ascending order as determined by the less function.
-// This sort is not guaranteed to be stable.
-//
-// SortFunc requires that less is a strict weak ordering.
-// See https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings.
-func SortFunc[E any](x []E, less func(a, b E) bool) {
-	lessFunc[E](less).sortFast(x)
-}
-
-// SortStable sorts the slice x while keeping the original order of equal
-// elements, using less to compare elements.
-func SortStableFunc[E any](x []E, less func(a, b E) bool) {
-	lessFunc[E](less).sortStable(x, true)
+// SortStableFunc sorts the slice x while keeping the original order of equal
+// elements, using cmp to compare elements.
+func SortStable[E cmp.Ordered](list []E) {
+	sortStable(list, true)
 }
 
 // IsSorted reports whether x is sorted in ascending order.
-func IsSorted[E constraints.Ordered](x []E) bool {
-	return isSorted(x)
+func IsSorted[E cmp.Ordered](list []E) bool {
+	return isSorted(list)
 }
 
-// IsSortedFunc reports whether x is sorted in ascending order, with less as the
-// comparison function.
-func IsSortedFunc[E any](x []E, less func(a, b E) bool) bool {
-	return lessFunc[E](less).isSorted(x)
+// Min returns the minimal value in x. It panics if x is empty.
+// For floating-point numbers, Min propagates NaNs (any NaN value in x
+// forces the output to be NaN).
+func Min[E cmp.Ordered](list []E) E {
+	return findMin(list)
+}
+
+// Max returns the maximal value in x. It panics if x is empty.
+// For floating-point E, Max propagates NaNs (any NaN value in x
+// forces the output to be NaN).
+func Max[E cmp.Ordered](list []E) E {
+	return findMax(list)
 }
 
 // BinarySearch searches for target in a sorted slice and returns the position
 // where target is found, or the position where target would appear in the
 // sort order; it also returns a bool saying whether the target is really found
 // in the slice. The slice must be sorted in increasing order.
-func BinarySearch[E constraints.Ordered](x []E, target E) (int, bool) {
+func BinarySearch[E cmp.Ordered](x []E, target E) (int, bool) {
 	return binarySearch(x, target)
-}
-
-// BinarySearchFunc works like BinarySearch, but uses a custom comparison
-// function. The slice must be sorted in increasing order, where "increasing" is
-// defined by the less function.
-func BinarySearchFunc[E any](x []E, target E, less func(a, b E) bool) (int, bool) {
-	return lessFunc[E](less).binarySearch(x, target)
 }
 
 type lessFunc[E any] func(a, b E) bool
@@ -97,6 +80,30 @@ func (od *Order[E]) BinarySearch(list []E, target E) (int, bool) {
 		return refLessFunc[E](od.RefLess).binarySearch(list, target)
 	}
 	return lessFunc[E](od.Less).binarySearch(list, target)
+}
+
+// The general version of Min.
+func (od *Order[E]) Min(list []E) E {
+	if od.RefLess == nil {
+		if od.Less == nil {
+			panic("uninitialized Order")
+		}
+	} else if od.Less == nil || !isSmallUnit[E]() {
+		return refLessFunc[E](od.RefLess).findMin(list)
+	}
+	return lessFunc[E](od.Less).findMin(list)
+}
+
+// The general version of Max.
+func (od *Order[E]) Max(list []E) E {
+	if od.RefLess == nil {
+		if od.Less == nil {
+			panic("uninitialized Order")
+		}
+	} else if od.Less == nil || !isSmallUnit[E]() {
+		return refLessFunc[E](od.RefLess).findMax(list)
+	}
+	return lessFunc[E](od.Less).findMax(list)
 }
 
 // The general version of IsSorted.

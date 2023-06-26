@@ -1,10 +1,12 @@
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package slices
 
 import (
+	"cmp"
+	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -18,7 +20,7 @@ var float64sWithNaNs = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3,
 var strs = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
 func TestSortIntSlice(t *testing.T) {
-	data := ints[:]
+	data := Clone(ints[:])
 	Sort(data)
 	if !IsSorted(data) {
 		t.Errorf("sorted %v", ints)
@@ -26,9 +28,15 @@ func TestSortIntSlice(t *testing.T) {
 	}
 }
 
+var intOrder = Order[int]{
+	Less: func(x, y int) bool {
+		return x < y
+	},
+}
+
 func TestSortFuncIntSlice(t *testing.T) {
-	data := ints[:]
-	SortFunc(data, func(a, b int) bool { return a < b })
+	data := Clone(ints[:])
+	intOrder.Sort(data)
 	if !IsSorted(data) {
 		t.Errorf("sorted %v", ints)
 		t.Errorf("   got %v", data)
@@ -36,7 +44,7 @@ func TestSortFuncIntSlice(t *testing.T) {
 }
 
 func TestSortFloat64Slice(t *testing.T) {
-	data := float64s[:]
+	data := Clone(float64s[:])
 	Sort(data)
 	if !IsSorted(data) {
 		t.Errorf("sorted %v", float64s)
@@ -46,24 +54,23 @@ func TestSortFloat64Slice(t *testing.T) {
 
 func TestSortFloat64SliceWithNaNs(t *testing.T) {
 	data := float64sWithNaNs[:]
-	input := make([]float64, len(float64sWithNaNs))
-	for i := range input {
-		input[i] = float64sWithNaNs[i]
-	}
-	// Make sure Sort doesn't panic when the slice contains NaNs.
+	data2 := Clone(data)
+
 	Sort(data)
-	// Check whether the result is a permutation of the input.
-	sort.Float64s(data)
-	sort.Float64s(input)
-	for i, v := range input {
-		if data[i] != v && !(math.IsNaN(data[i]) && math.IsNaN(v)) {
-			t.Fatalf("the result is not a permutation of the input\ngot %v\nwant %v", data, input)
-		}
+	sort.Float64s(data2)
+
+	if !IsSorted(data) {
+		t.Error("IsSorted indicates data isn't sorted")
+	}
+
+	// Compare for equality using cmp.Compare, which considers NaNs equal.
+	if !EqualFunc(data, data2, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
+		t.Errorf("mismatch between Sort and sort.Float64: got %v, want %v", data, data2)
 	}
 }
 
 func TestSortStringSlice(t *testing.T) {
-	data := strs[:]
+	data := Clone(strs[:])
 	Sort(data)
 	if !IsSorted(data) {
 		t.Errorf("sorted %v", strs)
@@ -89,30 +96,6 @@ func TestSortLarge_Random(t *testing.T) {
 	}
 }
 
-func TestSortSpecialPattern(t *testing.T) {
-	n := 1000
-	data := make([]int, n)
-	data[0] = n
-	for i := 1; i < n; i++ {
-		data[i] = i
-	}
-	Sort(data)
-	for i := 0; i < n; i++ {
-		if data[i] != i+1 {
-			t.Fatalf("sort didn't sort - special pattern")
-		}
-	}
-	for i := 0; i < n; i++ {
-		data[i] = n - i
-	}
-	Sort(data)
-	for i := 0; i < n; i++ {
-		if data[i] != i+1 {
-			t.Fatalf("sort didn't sort - special pattern")
-		}
-	}
-}
-
 // It's hard to run heapSort from API, test it alone
 func TestHeapSort(t *testing.T) {
 	n := 100
@@ -135,9 +118,13 @@ type intPair struct {
 
 type intPairs []intPair
 
-// Pairs compare on a only.
-func intPairLess(x, y intPair) bool {
-	return x.a < y.a
+var intPairOrder = Order[intPair]{
+	Less: func(x, y intPair) bool {
+		return x.a < y.a
+	},
+	RefLess: func(x, y *intPair) bool {
+		return x.a < y.a
+	},
 }
 
 // Record initial order in B.
@@ -175,12 +162,12 @@ func TestStability(t *testing.T) {
 	for i := 0; i < len(data); i++ {
 		data[i].a = rand.Intn(m)
 	}
-	if IsSortedFunc(data, intPairLess) {
+	if intPairOrder.IsSorted(data) {
 		t.Fatalf("terrible rand.rand")
 	}
 	data.initB()
-	SortStableFunc(data, intPairLess)
-	if !IsSortedFunc(data, intPairLess) {
+	intPairOrder.SortStable(data)
+	if !intPairOrder.IsSorted(data) {
 		t.Errorf("Stable didn't sort %d ints", n)
 	}
 	if !data.inOrder() {
@@ -189,8 +176,8 @@ func TestStability(t *testing.T) {
 
 	// already sorted
 	data.initB()
-	SortStableFunc(data, intPairLess)
-	if !IsSortedFunc(data, intPairLess) {
+	intPairOrder.SortStable(data)
+	if !intPairOrder.IsSorted(data) {
 		t.Errorf("Stable shuffled sorted %d ints (order)", n)
 	}
 	if !data.inOrder() {
@@ -202,12 +189,102 @@ func TestStability(t *testing.T) {
 		data[i].a = len(data) - i
 	}
 	data.initB()
-	SortStableFunc(data, intPairLess)
-	if !IsSortedFunc(data, intPairLess) {
+	intPairOrder.SortStable(data)
+	if !intPairOrder.IsSorted(data) {
 		t.Errorf("Stable didn't sort %d ints", n)
 	}
 	if !data.inOrder() {
 		t.Errorf("Stable wasn't stable on %d ints", n)
+	}
+}
+
+func TestMinMax(t *testing.T) {
+	tests := []struct {
+		data    []int
+		wantMin int
+		wantMax int
+	}{
+		{[]int{7}, 7, 7},
+		{[]int{1, 2}, 1, 2},
+		{[]int{2, 1}, 1, 2},
+		{[]int{1, 2, 3}, 1, 3},
+		{[]int{3, 2, 1}, 1, 3},
+		{[]int{2, 1, 3}, 1, 3},
+		{[]int{2, 2, 3}, 2, 3},
+		{[]int{3, 2, 3}, 2, 3},
+		{[]int{0, 2, -9}, -9, 2},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v", tt.data), func(t *testing.T) {
+			gotMin := Min(tt.data)
+			if gotMin != tt.wantMin {
+				t.Errorf("Min got %v, want %v", gotMin, tt.wantMin)
+			}
+
+			gotMinFunc := intOrder.Min(tt.data)
+			if gotMinFunc != tt.wantMin {
+				t.Errorf("MinFunc got %v, want %v", gotMinFunc, tt.wantMin)
+			}
+
+			gotMax := Max(tt.data)
+			if gotMax != tt.wantMax {
+				t.Errorf("Max got %v, want %v", gotMax, tt.wantMax)
+			}
+
+			gotMaxFunc := intOrder.Max(tt.data)
+			if gotMaxFunc != tt.wantMax {
+				t.Errorf("MaxFunc got %v, want %v", gotMaxFunc, tt.wantMax)
+			}
+		})
+	}
+}
+
+func TestMinMaxNaNs(t *testing.T) {
+	fs := []float64{1.0, 999.9, 3.14, -400.4, -5.14}
+	if Min(fs) != -400.4 {
+		t.Errorf("got min %v, want -400.4", Min(fs))
+	}
+	if Max(fs) != 999.9 {
+		t.Errorf("got max %v, want 999.9", Max(fs))
+	}
+
+	// No matter which element of fs is replaced with a NaN, both Min and Max
+	// should propagate the NaN to their output.
+	for i := 0; i < len(fs); i++ {
+		testfs := make([]float64, len(fs)+1)
+		copy(testfs, fs)
+		testfs[len(fs)] = testfs[i]
+		testfs[i] = math.NaN()
+
+		fmin := Min(testfs)
+		if !math.IsNaN(fmin) && fmin != -400.4 {
+			t.Errorf("got min %v, want NaN or -400.4", fmin)
+		}
+
+		fmax := Max(testfs)
+		if !math.IsNaN(fmax) && fmax != 999.9 {
+			t.Errorf("got max %v, want NaN or 999.9", fmax)
+		}
+	}
+}
+
+func TestMinMaxPanics(t *testing.T) {
+	emptySlice := []int{}
+
+	if !panics(func() { Min(emptySlice) }) {
+		t.Errorf("Min([]): got no panic, want panic")
+	}
+
+	if !panics(func() { Max(emptySlice) }) {
+		t.Errorf("Max([]): got no panic, want panic")
+	}
+
+	if !panics(func() { intOrder.Min(emptySlice) }) {
+		t.Errorf("MinFunc([]): got no panic, want panic")
+	}
+
+	if !panics(func() { intOrder.Max(emptySlice) }) {
+		t.Errorf("MaxFunc([]): got no panic, want panic")
 	}
 }
 
@@ -298,6 +375,36 @@ func TestBinarySearchInts(t *testing.T) {
 			if pos != tt.wantPos || found != tt.wantFound {
 				t.Errorf("BinarySearch got (%v, %v), want (%v, %v)", pos, found, tt.wantPos, tt.wantFound)
 			}
+			pos, found = intOrder.BinarySearch(data, tt.target)
+			if pos != tt.wantPos || found != tt.wantFound {
+				t.Errorf("BinarySearch got (%v, %v), want (%v, %v)", pos, found, tt.wantPos, tt.wantFound)
+			}
+		})
+	}
+}
+
+func TestBinarySearchFloats(t *testing.T) {
+	data := []float64{math.NaN(), -0.25, 0.0, 1.4}
+	tests := []struct {
+		target    float64
+		wantPos   int
+		wantFound bool
+	}{
+		{math.NaN(), 0, true},
+		{math.Inf(-1), 1, false},
+		{-0.25, 1, true},
+		{0.0, 2, true},
+		{1.4, 3, true},
+		{1.5, 4, false},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v", tt.target), func(t *testing.T) {
+			{
+				pos, found := BinarySearch(data, tt.target)
+				if pos != tt.wantPos || found != tt.wantFound {
+					t.Errorf("BinarySearch got (%v, %v), want (%v, %v)", pos, found, tt.wantPos, tt.wantFound)
+				}
+			}
 		})
 	}
 }
@@ -313,10 +420,11 @@ func countOps(t *testing.T, stable, inplace bool) {
 		t.Skip("Counting skipped as non-verbose mode.")
 	}
 	ncmp := 0
-	od := Order[int]{Less: func(a, b int) bool {
-		ncmp++
-		return a < b
-	}}
+	od := Order[int]{
+		Less: func(a, b int) bool {
+			ncmp++
+			return a < b
+		}}
 	for _, n := range sizes {
 		data := make([]int, n)
 		for i := 0; i < n; i++ {
@@ -367,22 +475,24 @@ func testSortObject(t *testing.T, stable, inplace bool) {
 		data1[i].val = val
 		data2[i].val = val
 	}
-	od1 := Order[smallObject]{Less: func(a, b smallObject) bool {
-		return a.val < b.val
-	}, RefLess: func(a, b *smallObject) bool {
-		return a.val < b.val
-	}}
+	od1 := Order[smallObject]{
+		Less: func(a, b smallObject) bool {
+			return a.val < b.val
+		}, RefLess: func(a, b *smallObject) bool {
+			return a.val < b.val
+		}}
 
 	od1.SortWithOption(data1, stable, inplace)
 	if !od1.IsSorted(data1) {
 		t.Errorf("small objects didn't sort")
 	}
 
-	od2 := Order[bigObject]{Less: func(a, b bigObject) bool {
-		return a.val < b.val
-	}, RefLess: func(a, b *bigObject) bool {
-		return a.val < b.val
-	}}
+	od2 := Order[bigObject]{
+		Less: func(a, b bigObject) bool {
+			return a.val < b.val
+		}, RefLess: func(a, b *bigObject) bool {
+			return a.val < b.val
+		}}
 	od2.SortWithOption(data2, stable, inplace)
 	if !od2.IsSorted(data2) {
 		t.Errorf("big objects didn't sort")

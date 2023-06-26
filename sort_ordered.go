@@ -1,4 +1,4 @@
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,61 +7,66 @@
 package slices
 
 import (
-	"golang.org/x/exp/constraints"
+	"cmp"
 	"math/bits"
 )
-
-func reverse[E any](list []E) {
-	for l, r := 0, len(list)-1; l < r; {
-		list[l], list[r] = list[r], list[l]
-		l++
-		r--
-	}
-}
 
 func log2Ceil(num uint) int {
 	return bits.Len(num)
 }
 
-// With small E, double reversion is faster than the BlockSwap rotation.
-// BlockSwap rotation needs less swaps, but more branches.
-func rotate[E any](list []E, border int) {
-	reverse(list[:border])
-	reverse(list[border:])
-	reverse(list)
-}
-
-// It's hoped to be inlined.
-func less[E constraints.Ordered](a, b E) bool {
-	return a < b
-}
-
-func binarySearch[E constraints.Ordered](list []E, x E) (int, bool) {
+func binarySearch[E cmp.Ordered](list []E, x E) (int, bool) {
 	a, b := 0, len(list)
 	for a < b {
 		m := int(uint(a+b) / 2)
-		if less(list[m], x) {
+		if cmp.Less(list[m], x) {
 			a = m + 1
 		} else {
 			b = m
 		}
 	}
-	if a >= len(list) || less(x, list[a]) {
+	if a >= len(list) || cmp.Less(x, list[a]) {
 		return a, false
 	}
 	return a, true
 }
 
-func isSorted[E constraints.Ordered](list []E) bool {
+func isSorted[E cmp.Ordered](list []E) bool {
 	for i := 1; i < len(list); i++ {
-		if less(list[i], list[i-1]) {
+		if cmp.Less(list[i], list[i-1]) {
 			return false
 		}
 	}
 	return true
 }
 
-func sortFast[E constraints.Ordered](list []E) {
+func findMin[E cmp.Ordered](list []E) E {
+	if len(list) < 1 {
+		panic("slices.Min: empty list")
+	}
+	m := list[0]
+	for i := 1; i < len(list); i++ {
+		if cmp.Less(list[i], m) {
+			m = list[i]
+		}
+	}
+	return m
+}
+
+func findMax[E cmp.Ordered](list []E) E {
+	if len(list) < 1 {
+		panic("slices.Max: empty list")
+	}
+	m := list[0]
+	for i := 1; i < len(list); i++ {
+		if cmp.Less(m, list[i]) {
+			m = list[i]
+		}
+	}
+	return m
+}
+
+func sortFast[E cmp.Ordered](list []E) {
 	size := len(list)
 	chance := log2Ceil(uint(size)) * 3 / 2
 	if size > 50 {
@@ -83,10 +88,10 @@ func sortFast[E constraints.Ordered](list []E) {
 
 		l, r := 0, size-1
 		for {
-			for less(list[l], pivot) {
+			for cmp.Less(list[l], pivot) {
 				l++
 			}
-			for less(pivot, list[r]) {
+			for cmp.Less(pivot, list[r]) {
 				r--
 			}
 			if l >= r {
@@ -113,20 +118,20 @@ const (
 	hintRevered
 )
 
-func median[E constraints.Ordered](list []E, a, b, c int) (int, uint8) {
+func median[E cmp.Ordered](list []E, a, b, c int) (int, uint8) {
 	// keep stable
-	if less(list[b], list[a]) {
-		if less(list[c], list[b]) {
+	if cmp.Less(list[b], list[a]) {
+		if cmp.Less(list[c], list[b]) {
 			return b, hintRevered //c, b, a
-		} else if less(list[c], list[a]) {
+		} else if cmp.Less(list[c], list[a]) {
 			return c, 0 //b, c, a
 		} else {
 			return a, 0 //b, a, c
 		}
 	} else {
-		if less(list[c], list[a]) {
+		if cmp.Less(list[c], list[a]) {
 			return a, 0 //c, a, b
-		} else if less(list[c], list[b]) {
+		} else if cmp.Less(list[c], list[b]) {
 			return c, 0 //a, c, b
 		} else {
 			return b, hintSorted //a, b, c
@@ -135,7 +140,7 @@ func median[E constraints.Ordered](list []E, a, b, c int) (int, uint8) {
 }
 
 // Avoid allocating O(n) size extra memory when inplace flag is set.
-func sortStable[E constraints.Ordered](list []E, inplace bool) {
+func sortStable[E cmp.Ordered](list []E, inplace bool) {
 	if size := len(list); size < 16 {
 		simpleSort(list)
 	} else if inplace {
@@ -168,20 +173,20 @@ func sortStable[E constraints.Ordered](list []E, inplace bool) {
 }
 
 // A variant of insertion sort for short list.
-func simpleSort[E constraints.Ordered](list []E) {
+func simpleSort[E cmp.Ordered](list []E) {
 	if len(list) < 2 {
 		return
 	}
 	for i := 1; i < len(list); i++ {
 		curr := list[i]
-		if less(curr, list[0]) {
+		if cmp.Less(curr, list[0]) {
 			for j := i; j > 0; j-- {
 				list[j] = list[j-1]
 			}
 			list[0] = curr
 		} else {
 			pos := i
-			for ; less(curr, list[pos-1]); pos-- {
+			for ; cmp.Less(curr, list[pos-1]); pos-- {
 				list[pos] = list[pos-1]
 			}
 			list[pos] = curr
@@ -189,7 +194,7 @@ func simpleSort[E constraints.Ordered](list []E) {
 	}
 }
 
-func heapSort[E constraints.Ordered](list []E) {
+func heapSort[E cmp.Ordered](list []E) {
 	for idx := len(list)/2 - 1; idx >= 0; idx-- {
 		heapDown(list, idx)
 	}
@@ -199,78 +204,78 @@ func heapSort[E constraints.Ordered](list []E) {
 	}
 }
 
-func heapDown[E constraints.Ordered](list []E, pos int) {
+func heapDown[E cmp.Ordered](list []E, pos int) {
 	curr := list[pos]
 	kid, last := pos*2+1, len(list)-1
 	for kid < last {
-		if less(list[kid], list[kid+1]) {
+		if cmp.Less(list[kid], list[kid+1]) {
 			kid++
 		}
-		if !less(curr, list[kid]) {
+		if !cmp.Less(curr, list[kid]) {
 			break
 		}
 		list[pos] = list[kid]
 		pos, kid = kid, kid*2+1
 	}
-	if kid == last && less(curr, list[kid]) {
+	if kid == last && cmp.Less(curr, list[kid]) {
 		list[pos], pos = list[kid], kid
 	}
 	list[pos] = curr
 }
 
 // Sort 5 elemnt in list with 7 comparison.
-func sortIndex5[E constraints.Ordered](list []E,
+func sortIndex5[E cmp.Ordered](list []E,
 	a, b, c, d, e int) (int, int, int, int, int) {
-	if less(list[b], list[a]) {
+	if cmp.Less(list[b], list[a]) {
 		a, b = b, a
 	}
-	if less(list[d], list[c]) {
+	if cmp.Less(list[d], list[c]) {
 		c, d = d, c
 	}
-	if less(list[c], list[a]) {
+	if cmp.Less(list[c], list[a]) {
 		a, c = c, a
 		b, d = d, b
 	}
-	if less(list[c], list[e]) {
-		if less(list[d], list[e]) {
-			if less(list[b], list[d]) {
-				if less(list[c], list[b]) {
+	if cmp.Less(list[c], list[e]) {
+		if cmp.Less(list[d], list[e]) {
+			if cmp.Less(list[b], list[d]) {
+				if cmp.Less(list[c], list[b]) {
 					return a, c, b, d, e
 				} else {
 					return a, b, c, d, e
 				}
-			} else if less(list[b], list[e]) {
+			} else if cmp.Less(list[b], list[e]) {
 				return a, c, d, b, e
 			} else {
 				return a, c, d, e, b
 			}
 		} else {
-			if less(list[b], list[e]) {
-				if less(list[c], list[b]) {
+			if cmp.Less(list[b], list[e]) {
+				if cmp.Less(list[c], list[b]) {
 					return a, c, b, e, d
 				} else {
 					return a, b, c, e, d
 				}
-			} else if less(list[b], list[d]) {
+			} else if cmp.Less(list[b], list[d]) {
 				return a, c, e, b, d
 			} else {
 				return a, c, e, d, b
 			}
 		}
 	} else {
-		if less(list[b], list[c]) {
-			if less(list[e], list[a]) {
+		if cmp.Less(list[b], list[c]) {
+			if cmp.Less(list[e], list[a]) {
 				return e, a, b, c, d
-			} else if less(list[e], list[b]) {
+			} else if cmp.Less(list[e], list[b]) {
 				return a, e, b, c, d
 			} else {
 				return a, b, e, c, d
 			}
 		} else {
-			if less(list[a], list[e]) {
+			if cmp.Less(list[a], list[e]) {
 				a, e = e, a
 			}
-			if less(list[d], list[b]) {
+			if cmp.Less(list[d], list[b]) {
 				b, d = d, b
 			}
 			return e, a, c, b, d
@@ -281,7 +286,7 @@ func sortIndex5[E constraints.Ordered](list []E,
 // triPartition divides list into 3 segments.
 // Eents before list[l] are all not greater than it.
 // Eents after list[r] are all not less than it.
-func triPartition[E constraints.Ordered](list []E) (l, r int) {
+func triPartition[E cmp.Ordered](list []E) (l, r int) {
 	size := len(list)
 	m, s := size/2, size/4
 	// Get a guide to avoid skewness.
@@ -298,16 +303,16 @@ func triPartition[E constraints.Ordered](list []E) (l, r int) {
 
 	l, r = 2, s-2
 	for {
-		for less(list[l], pivotL) {
+		for cmp.Less(list[l], pivotL) {
 			l++
 		}
-		for less(pivotR, list[r]) {
+		for cmp.Less(pivotR, list[r]) {
 			r--
 		}
-		if less(pivotR, list[l]) {
+		if cmp.Less(pivotR, list[l]) {
 			list[l], list[r] = list[r], list[l]
 			r--
-			if less(list[l], pivotL) {
+			if cmp.Less(list[l], pivotL) {
 				l++
 				continue
 			}
@@ -316,21 +321,21 @@ func triPartition[E constraints.Ordered](list []E) (l, r int) {
 	}
 
 	for k := l + 1; k <= r; k++ {
-		if less(pivotR, list[k]) {
-			for less(pivotR, list[r]) {
+		if cmp.Less(pivotR, list[k]) {
+			for cmp.Less(pivotR, list[r]) {
 				r--
 			}
 			if k >= r {
 				break
 			}
-			if less(list[r], pivotL) {
+			if cmp.Less(list[r], pivotL) {
 				list[l], list[k], list[r] = list[r], list[l], list[k]
 				l++
 			} else {
 				list[k], list[r] = list[r], list[k]
 			}
 			r--
-		} else if less(list[k], pivotL) {
+		} else if cmp.Less(list[k], pivotL) {
 			list[k], list[l] = list[l], list[k]
 			l++
 		}
@@ -343,7 +348,7 @@ func triPartition[E constraints.Ordered](list []E) (l, r int) {
 	return l, r
 }
 
-func introSort[E constraints.Ordered](list []E, chance int) {
+func introSort[E cmp.Ordered](list []E, chance int) {
 	for len(list) > 14 {
 		if chance--; chance < 0 {
 			heapSort(list)
@@ -354,7 +359,7 @@ func introSort[E constraints.Ordered](list []E, chance int) {
 		l, r := triPartition(list)
 		introSort(list[:l], chance)
 		introSort(list[r+1:], chance)
-		if !less(list[l], list[r]) {
+		if !cmp.Less(list[l], list[r]) {
 			return // All emelents in the middle segemnt are equal.
 		}
 		list = list[l+1 : r]
@@ -367,7 +372,7 @@ func introSort[E constraints.Ordered](list []E, chance int) {
 // Storage Merging by Symmetric Comparisons", in Susanne Albers and Tomasz
 // Radzik, editors, Algorithms - ESA 2004, volume 3221 of Lecture Notes in
 // Computer Science, pages 714-723. Springer, 2004.
-func symmerge[E constraints.Ordered](list []E, border int) {
+func symmerge[E cmp.Ordered](list []E, border int) {
 	size := len(list)
 
 	// Avoid unnecessary recursions of symmerge by direct insertion.
@@ -376,7 +381,7 @@ func symmerge[E constraints.Ordered](list []E, border int) {
 		a, b := 1, size
 		for a < b {
 			m := int(uint(a+b) / 2)
-			if less(list[m], curr) {
+			if cmp.Less(list[m], curr) {
 				a = m + 1
 			} else {
 				b = m
@@ -395,7 +400,7 @@ func symmerge[E constraints.Ordered](list []E, border int) {
 		a, b := 0, border
 		for a < b {
 			m := int(uint(a+b) / 2)
-			if less(curr, list[m]) {
+			if cmp.Less(curr, list[m]) {
 				b = m
 			} else {
 				a = m + 1
@@ -436,7 +441,7 @@ func symmerge[E constraints.Ordered](list []E, border int) {
 	p := n - 1
 	for a < b {
 		m := int(uint(a+b) / 2)
-		if less(list[p-m], list[m]) { //p-m == (n-m)-1
+		if cmp.Less(list[p-m], list[m]) { //p-m == (n-m)-1
 			b = m
 		} else {
 			a = m + 1
@@ -445,7 +450,7 @@ func symmerge[E constraints.Ordered](list []E, border int) {
 	b = n - a
 	// list[a] > list[b-1] && list[a] <= list[b] && list[b-1] >= list[a-1]
 	if a < border && border < b {
-		rotate(list[a:b], border-a)
+		rotateLeft(list[a:b], border-a)
 	}
 	if 0 < a && a < half {
 		symmerge(list[:half], a)
@@ -455,21 +460,21 @@ func symmerge[E constraints.Ordered](list []E, border int) {
 	}
 }
 
-func mergeSort[E constraints.Ordered](a, b []E) {
+func mergeSort[E cmp.Ordered](a, b []E) {
 	if size := len(a); size < 12 {
 		if size == 0 {
 			return
 		}
 		b[0] = a[0]
 		for i := 1; i < size; i++ {
-			if curr := a[i]; less(curr, b[0]) {
+			if curr := a[i]; cmp.Less(curr, b[0]) {
 				for j := i; j > 0; j-- {
 					b[j] = b[j-1]
 				}
 				b[0] = curr
 			} else {
 				pos := i
-				for ; less(curr, b[pos-1]); pos-- {
+				for ; cmp.Less(curr, b[pos-1]); pos-- {
 					b[pos] = b[pos-1]
 				}
 				b[pos] = curr
@@ -482,7 +487,7 @@ func mergeSort[E constraints.Ordered](a, b []E) {
 
 		i, j, k := 0, half, 0
 		for ; i < half && j < size; k++ {
-			if less(a[j], a[i]) {
+			if cmp.Less(a[j], a[i]) {
 				b[k] = a[j]
 				j++
 			} else {

@@ -1,4 +1,4 @@
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,14 +7,13 @@
 package slices
 
 import (
+	"cmp"
 	"unsafe"
-
-	"golang.org/x/exp/constraints"
 )
 
 const bqsSize = 1024
 
-func tryBlockIntroSort[E constraints.Ordered](list []E) bool {
+func tryBlockIntroSort[E cmp.Ordered](list []E) bool {
 	var elem E
 	var word uintptr
 	if unsafe.Sizeof(elem) > unsafe.Sizeof(word) ||
@@ -27,7 +26,7 @@ func tryBlockIntroSort[E constraints.Ordered](list []E) bool {
 	return true
 }
 
-func blockIntroSort[E constraints.Ordered](list []E, chance int) {
+func blockIntroSort[E cmp.Ordered](list []E, chance int) {
 	for len(list) >= bqsSize {
 		if chance--; chance < 0 {
 			heapSort(list)
@@ -43,14 +42,7 @@ func blockIntroSort[E constraints.Ordered](list []E, chance int) {
 	introSort(list, chance)
 }
 
-func min[E constraints.Ordered](a, b E) E {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func compGE[E constraints.Ordered](a, b E) int {
+func compGE[E cmp.Ordered](a, b E) int {
 	if a < b {
 		return 0
 	} else {
@@ -58,7 +50,7 @@ func compGE[E constraints.Ordered](a, b E) int {
 	}
 }
 
-func blockPartition[E constraints.Ordered](list []E) int {
+func blockPartition[E cmp.Ordered](list []E) int {
 	size := len(list) // size >= 16
 
 	a, b, c := size/4, size/2, size*3/4
