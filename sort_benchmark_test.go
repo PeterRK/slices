@@ -244,14 +244,7 @@ func BenchmarkStructNew(b *testing.B) {
 func BenchmarkStructStd(b *testing.B) {
 	benchmarkStruct(b, func(list []smallObject) {
 		std.SortFunc[[]smallObject, smallObject](list, func(a, b smallObject) int {
-			switch {
-			case a.val < b.val:
-				return -1
-			case a.val > b.val:
-				return 1
-			default:
-				return 0
-			}
+			return a.val - b.val
 		})
 	})
 }
@@ -271,14 +264,7 @@ func BenchmarkStableNew(b *testing.B) {
 func BenchmarkStableStd(b *testing.B) {
 	benchmarkStruct(b, func(list []smallObject) {
 		std.SortStableFunc[[]smallObject, smallObject](list, func(a, b smallObject) int {
-			switch {
-			case a.val < b.val:
-				return -1
-			case a.val > b.val:
-				return 1
-			default:
-				return 0
-			}
+			return a.val - b.val
 		})
 	})
 }
@@ -315,14 +301,7 @@ func BenchmarkPointerNew(b *testing.B) {
 func BenchmarkPointerStd(b *testing.B) {
 	benchmarkPointer(b, func(list []*smallObject) {
 		std.SortFunc(list, func(a, b *smallObject) int {
-			switch {
-			case a.val < b.val:
-				return -1
-			case a.val > b.val:
-				return 1
-			default:
-				return 0
-			}
+			return a.val - b.val
 		})
 	})
 }
