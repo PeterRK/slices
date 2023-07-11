@@ -13,7 +13,7 @@ import (
 // When sorting floating-point numbers, NaNs are ordered before other values.
 func Sort[E cmp.Ordered](list []E) {
 	if !tryBlockIntroSort(list) {
-		sortFast(listx)
+		sortFast(list)
 	}
 }
 
