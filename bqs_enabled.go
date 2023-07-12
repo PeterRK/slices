@@ -17,11 +17,10 @@ func tryBlockIntroSort[E cmp.Ordered](list []E) bool {
 	var elem E
 	var word uintptr
 	if unsafe.Sizeof(elem) > unsafe.Sizeof(word) ||
-		len(list) < bqsSize {
+		unsafe.Sizeof(elem) < 2 || len(list) < bqsSize {
 		return false
 	}
-	size := len(list)
-	chance := log2Ceil(uint(size)) * 2
+	chance := log2Ceil(uint(len(list))) * 2
 	blockIntroSort(list, chance)
 	return true
 }
