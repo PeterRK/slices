@@ -78,6 +78,45 @@ func TestSortStringSlice(t *testing.T) {
 	}
 }
 
+func testPartlySortedInts(t *testing.T, data []int, k int) {
+	t.Helper()
+	want := Clone(data)
+	sort.Ints(want)
+
+	PartlySort(data, k)
+	if k <= 0 {
+		return
+	}
+	if !IsSorted(data[:min(k, len(data))]) {
+		t.Fatalf("prefix is not sorted: %v", data[:min(k, len(data))])
+	}
+	for i := 0; i < min(k, len(data)); i++ {
+		if data[i] != want[i] {
+			t.Fatalf("prefix mismatch at %d: got %v want %v", i, data[:min(k, len(data))], want[:min(k, len(data))])
+		}
+	}
+}
+
+func TestPartlySort(t *testing.T) {
+	cases := []struct {
+		name string
+		data []int
+		k    int
+	}{
+		{name: "zero", data: Clone(ints[:]), k: 0},
+		{name: "one", data: Clone(ints[:]), k: 1},
+		{name: "middle", data: Clone(ints[:]), k: 5},
+		{name: "all", data: Clone(ints[:]), k: len(ints)},
+		{name: "overflow", data: Clone(ints[:]), k: len(ints) + 3},
+		{name: "dup", data: []int{5, 1, 5, 2, 5, 3, 5, 4}, k: 4},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			testPartlySortedInts(t, tt.data, tt.k)
+		})
+	}
+}
+
 func TestSortLarge_Random(t *testing.T) {
 	n := 1000000
 	if testing.Short() {
@@ -503,3 +542,32 @@ func TestSortObject(t *testing.T)              { testSortObject(t, false, false)
 func TestSortObjectInplace(t *testing.T)       { testSortObject(t, false, true) }
 func TestSortObjectStable(t *testing.T)        { testSortObject(t, true, false) }
 func TestSortObjectStableInplace(t *testing.T) { testSortObject(t, true, true) }
+
+func TestOrderPartlySort(t *testing.T) {
+	data := []bigObject{
+		{object: object{val: 9}},
+		{object: object{val: 7}},
+		{object: object{val: 2}},
+		{object: object{val: 8}},
+		{object: object{val: 1}},
+		{object: object{val: 6}},
+		{object: object{val: 3}},
+		{object: object{val: 5}},
+		{object: object{val: 4}},
+	}
+	od := Order[bigObject]{
+		Less: func(a, b bigObject) bool { return a.val < b.val },
+		RefLess: func(a, b *bigObject) bool {
+			return a.val < b.val
+		},
+	}
+	od.PartlySort(data, 4)
+	if !od.IsSorted(data[:4]) {
+		t.Fatalf("prefix is not sorted")
+	}
+	for i := 0; i < 4; i++ {
+		if data[i].val != i+1 {
+			t.Fatalf("prefix mismatch at %d: got %v", i, data[:4])
+		}
+	}
+}

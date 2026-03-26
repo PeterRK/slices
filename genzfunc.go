@@ -108,7 +108,7 @@ func rewriteCalls(n ast.Node) ast.Visitor {
 	return visitFunc(rewriteCalls)
 }
 
-var header = `// Code generated from sort.go using genzfunc.go; DO NOT EDIT.
+var header = `// Code generated from sort_ordered.go using genzfunc.go; DO NOT EDIT.
 
 // Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

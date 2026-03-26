@@ -23,6 +23,11 @@ func SortStable[E cmp.Ordered](list []E) {
 	sortStable(list, true)
 }
 
+// PartlySort moves the smallest k elements to list[:k] and sorts that prefix.
+func PartlySort[E cmp.Ordered](list []E, k int) {
+	partlySort(list, k)
+}
+
 // IsSorted reports whether x is sorted in ascending order.
 func IsSorted[E cmp.Ordered](list []E) bool {
 	return isSorted(list)
@@ -131,6 +136,22 @@ func (od *Order[E]) Sort(list []E) {
 // It tends to use faster algorithm with extra memory.
 func (od *Order[E]) SortStable(list []E) {
 	od.SortWithOption(list, true, false)
+}
+
+// PartlySort moves the smallest k elements to list[:k] and sorts that prefix.
+func (od *Order[E]) PartlySort(list []E, k int) {
+	if len(list) < 2 || k <= 0 {
+		return
+	}
+	if od.RefLess == nil {
+		if od.Less == nil {
+			panic("uninitialized Order")
+		}
+	} else if od.Less == nil || !isSmallUnit[E]() {
+		refLessFunc[E](od.RefLess).partlySort(list, k)
+		return
+	}
+	lessFunc[E](od.Less).partlySort(list, k)
 }
 
 var cacheInfo = struct {

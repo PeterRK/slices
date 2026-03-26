@@ -1,4 +1,4 @@
-// Code generated from sort.go using genzfunc.go; DO NOT EDIT.
+// Code generated from sort_ordered.go using genzfunc.go; DO NOT EDIT.
 
 // Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -155,6 +155,18 @@ func (lt lessFunc[E]) sortStable(list []E, inplace bool) {
 		copy(temp, list)
 		lt.mergeSort(temp, list)
 	}
+}
+
+func (lt lessFunc[E]) partlySort(list []E, k int) {
+	if len(list) < 2 || k <= 0 {
+		return
+	}
+	if k >= len(list) {
+		lt.sortFast(list)
+		return
+	}
+	lt.partlySelect(list, k)
+	lt.sortFast(list[:k])
 }
 
 func (lt lessFunc[E]) simpleSort(list []E) {
@@ -323,6 +335,27 @@ func (lt lessFunc[E]) triPartition(list []E) (l, r int) {
 	list[0], list[l] = list[l], pivotL
 	list[s], list[r] = list[r], pivotR
 	return l, r
+}
+
+func (lt lessFunc[E]) partlySelect(list []E, k int) {
+	for len(list) > 14 {
+		l, r := lt.triPartition(list)
+		switch {
+		case k <= l:
+			list = list[:l]
+		case k == l+1:
+			return
+		case k < r+1:
+			list = list[l+1 : r]
+			k -= l + 1
+		case k == r+1:
+			return
+		default:
+			list = list[r+1:]
+			k -= r + 1
+		}
+	}
+	lt.simpleSort(list)
 }
 
 func (lt lessFunc[E]) introSort(list []E, chance int) {

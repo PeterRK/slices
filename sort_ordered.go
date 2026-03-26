@@ -172,6 +172,18 @@ func sortStable[E cmp.Ordered](list []E, inplace bool) {
 	}
 }
 
+func partlySort[E cmp.Ordered](list []E, k int) {
+	if len(list) < 2 || k <= 0 {
+		return
+	}
+	if k >= len(list) {
+		sortFast(list)
+		return
+	}
+	partlySelect(list, k)
+	sortFast(list[:k])
+}
+
 // A variant of insertion sort for short list.
 func simpleSort[E cmp.Ordered](list []E) {
 	if len(list) < 2 {
@@ -346,6 +358,27 @@ func triPartition[E cmp.Ordered](list []E) (l, r int) {
 	list[0], list[l] = list[l], pivotL
 	list[s], list[r] = list[r], pivotR
 	return l, r
+}
+
+func partlySelect[E cmp.Ordered](list []E, k int) {
+	for len(list) > 14 {
+		l, r := triPartition(list)
+		switch {
+		case k <= l:
+			list = list[:l]
+		case k == l+1:
+			return
+		case k < r+1:
+			list = list[l+1 : r]
+			k -= l + 1
+		case k == r+1:
+			return
+		default:
+			list = list[r+1:]
+			k -= r + 1
+		}
+	}
+	simpleSort(list)
 }
 
 func introSort[E cmp.Ordered](list []E, chance int) {
