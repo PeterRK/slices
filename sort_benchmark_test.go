@@ -159,6 +159,29 @@ func BenchmarkHybridStd(b *testing.B) {
 	benchmarkHybrid(b, std.Sort[[]int, int])
 }
 
+func benchmarkPartlySort(b *testing.B, sort func([]int, int)) {
+	for _, sc := range level {
+		for _, ratio := range []int{5, 10, 30} {
+			k := sc.size * ratio / 100
+			b.Run(sc.name+"-Top"+strconv.Itoa(ratio)+"%", func(b *testing.B) {
+				b.StopTimer()
+				rand.Seed(0)
+				list := make([]int, sc.size)
+				for i := 0; i < b.N; i++ {
+					randomInts(list)
+					b.StartTimer()
+					sort(list, k)
+					b.StopTimer()
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkPartlySort(b *testing.B) {
+	benchmarkPartlySort(b, PartlySort[int])
+}
+
 func benchmarkFloat(b *testing.B, sort func([]float64)) {
 	for _, sc := range level {
 		b.Run(sc.name, func(b *testing.B) {
@@ -247,6 +270,35 @@ func BenchmarkStructStd(b *testing.B) {
 			return a.val - b.val
 		})
 	})
+}
+
+func benchmarkStructPartlySort(b *testing.B, sort func([]smallObject, int)) {
+	for _, sc := range level {
+		k := sc.size * 5 / 100
+		b.Run(sc.name, func(b *testing.B) {
+			b.StopTimer()
+			rand.Seed(0)
+			list := make([]smallObject, sc.size)
+			for i := 0; i < b.N; i++ {
+				for j := 0; j < sc.size; j++ {
+					list[j].val = rand.Intn(sc.size)
+				}
+				b.StartTimer()
+				sort(list, k)
+				b.StopTimer()
+			}
+		})
+	}
+}
+
+func BenchmarkStructPartlySort(b *testing.B) {
+	order := Order[smallObject]{
+		Less: func(a, b smallObject) bool {
+			return a.val < b.val
+		}, RefLess: func(a, b *smallObject) bool {
+			return a.val < b.val
+		}}
+	benchmarkStructPartlySort(b, order.PartlySort)
 }
 
 func BenchmarkStableNew(b *testing.B) {
