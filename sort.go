@@ -23,6 +23,11 @@ func SortStable[E cmp.Ordered](x []E) {
 	sortStable(x, true)
 }
 
+// PartlySort moves the smallest k elements to list[:k] and sorts that prefix.
+func PartlySort[E cmp.Ordered](list []E, k int) {
+	partlySort(list, k)
+}
+
 // SortFunc sorts the slice x in ascending order as determined by the less function.
 // This sort is not guaranteed to be stable.
 //
@@ -36,6 +41,11 @@ func SortFunc[E any](x []E, less func(a, b E) bool) {
 // elements, using less to compare elements.
 func SortStableFunc[E any](x []E, less func(a, b E) bool) {
 	lessFunc[E](less).sortStable(x, true)
+}
+
+// PartlySortFunc moves the smallest k elements to list[:k] and sorts that prefix.
+func PartlySortFunc[E any](list []E, k int, less func(a, b E) bool) {
+	lessFunc[E](less).partlySort(list, k)
 }
 
 // IsSorted reports whether x is sorted in ascending order.
@@ -121,6 +131,22 @@ func (od *Order[E]) Sort(list []E) {
 // It tends to use faster algorithm with extra memory.
 func (od *Order[E]) SortStable(list []E) {
 	od.SortWithOption(list, true, false)
+}
+
+// PartlySort moves the smallest k elements to list[:k] and sorts that prefix.
+func (od *Order[E]) PartlySort(list []E, k int) {
+	if len(list) < 2 || k <= 0 {
+		return
+	}
+	if od.RefLess == nil {
+		if od.Less == nil {
+			panic("uninitialized Order")
+		}
+	} else if od.Less == nil || !isSmallUnit[E]() {
+		refLessFunc[E](od.RefLess).partlySort(list, k)
+		return
+	}
+	lessFunc[E](od.Less).partlySort(list, k)
 }
 
 var cacheInfo = struct {

@@ -4,6 +4,7 @@
 ```go
 func BinarySearch[E cmp.Ordered](list []E, x E) (int, bool)
 func IsSorted[E cmp.Ordered](list []E) bool
+func PartlySort[E cmp.Ordered](list []E, k int)
 func Sort[E cmp.Ordered](list []E)
 func SortStable[E cmp.Ordered](list []E)
 ```
@@ -17,6 +18,7 @@ type Order[E any] struct {
 
 func (od *Order[E]) BinarySearch(list []E, x E) (int, bool)
 func (od *Order[E]) IsSorted(list []E) bool
+func (od *Order[E]) PartlySort(list []E, k int)
 func (od *Order[E]) Sort(list []E)
 func (od *Order[E]) SortStable(list []E)
 func (od *Order[E]) SortWithOption(list []E, stable, inplace bool)
@@ -26,6 +28,7 @@ func (od *Order[E]) SortWithOption(list []E, stable, inplace bool)
 ```go
 func BinarySearchFunc[E any](list []E, x E, less func(a, b E) bool) (int, bool)
 func IsSortedFunc[E any](list []E, less func(a, b E) bool) bool
+func PartlySortFunc[E any](list []E, k int, less func(a, b E) bool)
 func SortFunc[E any](list []E, less func(a, b E) bool)
 func SortStableFunc[E any](list []E, less func(a, b E) bool)
 ```
