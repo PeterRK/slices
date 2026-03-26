@@ -7,7 +7,7 @@
 package slices
 
 import (
-	"golang.org/x/exp/constraints"
+	"cmp"
 	"math/bits"
 )
 
@@ -32,11 +32,11 @@ func rotate[E any](list []E, border int) {
 }
 
 // It's hoped to be inlined.
-func less[E constraints.Ordered](a, b E) bool {
+func less[E cmp.Ordered](a, b E) bool {
 	return a < b
 }
 
-func binarySearch[E constraints.Ordered](list []E, x E) (int, bool) {
+func binarySearch[E cmp.Ordered](list []E, x E) (int, bool) {
 	a, b := 0, len(list)
 	for a < b {
 		m := int(uint(a+b) / 2)
@@ -52,7 +52,7 @@ func binarySearch[E constraints.Ordered](list []E, x E) (int, bool) {
 	return a, true
 }
 
-func isSorted[E constraints.Ordered](list []E) bool {
+func isSorted[E cmp.Ordered](list []E) bool {
 	for i := 1; i < len(list); i++ {
 		if less(list[i], list[i-1]) {
 			return false
@@ -61,7 +61,7 @@ func isSorted[E constraints.Ordered](list []E) bool {
 	return true
 }
 
-func sortFast[E constraints.Ordered](list []E) {
+func sortFast[E cmp.Ordered](list []E) {
 	size := len(list)
 	chance := log2Ceil(uint(size)) * 3 / 2
 	if size > 50 {
@@ -113,7 +113,7 @@ const (
 	hintRevered
 )
 
-func median[E constraints.Ordered](list []E, a, b, c int) (int, uint8) {
+func median[E cmp.Ordered](list []E, a, b, c int) (int, uint8) {
 	// keep stable
 	if less(list[b], list[a]) {
 		if less(list[c], list[b]) {
@@ -135,7 +135,7 @@ func median[E constraints.Ordered](list []E, a, b, c int) (int, uint8) {
 }
 
 // Avoid allocating O(n) size extra memory when inplace flag is set.
-func sortStable[E constraints.Ordered](list []E, inplace bool) {
+func sortStable[E cmp.Ordered](list []E, inplace bool) {
 	if size := len(list); size < 16 {
 		simpleSort(list)
 	} else if inplace {
@@ -168,7 +168,7 @@ func sortStable[E constraints.Ordered](list []E, inplace bool) {
 }
 
 // A variant of insertion sort for short list.
-func simpleSort[E constraints.Ordered](list []E) {
+func simpleSort[E cmp.Ordered](list []E) {
 	if len(list) < 2 {
 		return
 	}
@@ -189,7 +189,7 @@ func simpleSort[E constraints.Ordered](list []E) {
 	}
 }
 
-func heapSort[E constraints.Ordered](list []E) {
+func heapSort[E cmp.Ordered](list []E) {
 	for idx := len(list)/2 - 1; idx >= 0; idx-- {
 		heapDown(list, idx)
 	}
@@ -199,7 +199,7 @@ func heapSort[E constraints.Ordered](list []E) {
 	}
 }
 
-func heapDown[E constraints.Ordered](list []E, pos int) {
+func heapDown[E cmp.Ordered](list []E, pos int) {
 	curr := list[pos]
 	kid, last := pos*2+1, len(list)-1
 	for kid < last {
@@ -219,7 +219,7 @@ func heapDown[E constraints.Ordered](list []E, pos int) {
 }
 
 // Sort 5 elemnt in list with 7 comparison.
-func sortIndex5[E constraints.Ordered](list []E,
+func sortIndex5[E cmp.Ordered](list []E,
 	a, b, c, d, e int) (int, int, int, int, int) {
 	if less(list[b], list[a]) {
 		a, b = b, a
@@ -281,7 +281,7 @@ func sortIndex5[E constraints.Ordered](list []E,
 // triPartition divides list into 3 segments.
 // Eents before list[l] are all not greater than it.
 // Eents after list[r] are all not less than it.
-func triPartition[E constraints.Ordered](list []E) (l, r int) {
+func triPartition[E cmp.Ordered](list []E) (l, r int) {
 	size := len(list)
 	m, s := size/2, size/4
 	// Get a guide to avoid skewness.
@@ -343,7 +343,7 @@ func triPartition[E constraints.Ordered](list []E) (l, r int) {
 	return l, r
 }
 
-func introSort[E constraints.Ordered](list []E, chance int) {
+func introSort[E cmp.Ordered](list []E, chance int) {
 	for len(list) > 14 {
 		if chance--; chance < 0 {
 			heapSort(list)
@@ -367,7 +367,7 @@ func introSort[E constraints.Ordered](list []E, chance int) {
 // Storage Merging by Symmetric Comparisons", in Susanne Albers and Tomasz
 // Radzik, editors, Algorithms - ESA 2004, volume 3221 of Lecture Notes in
 // Computer Science, pages 714-723. Springer, 2004.
-func symmerge[E constraints.Ordered](list []E, border int) {
+func symmerge[E cmp.Ordered](list []E, border int) {
 	size := len(list)
 
 	// Avoid unnecessary recursions of symmerge by direct insertion.
@@ -455,7 +455,7 @@ func symmerge[E constraints.Ordered](list []E, border int) {
 	}
 }
 
-func mergeSort[E constraints.Ordered](a, b []E) {
+func mergeSort[E cmp.Ordered](a, b []E) {
 	if size := len(a); size < 12 {
 		if size == 0 {
 			return

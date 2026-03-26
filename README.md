@@ -2,10 +2,10 @@
 
 ## API for builtin types
 ```go
-func BinarySearch[E constraints.Ordered](list []E, x E) (int, bool)
-func IsSorted[E constraints.Ordered](list []E) bool
-func Sort[E constraints.Ordered](list []E)
-func SortStable[E constraints.Ordered](list []E)
+func BinarySearch[E cmp.Ordered](list []E, x E) (int, bool)
+func IsSorted[E cmp.Ordered](list []E) bool
+func Sort[E cmp.Ordered](list []E)
+func SortStable[E cmp.Ordered](list []E)
 ```
 
 ## Fast API for custom types
@@ -33,7 +33,7 @@ func SortStableFunc[E any](list []E, less func(a, b E) bool)
 ## [Benchmark](https://gist.github.com/PeterRK/625e8fad081267d00e5f9e9f7a8e2084) Result on Xeon-8374C
 This algorithm runs fast in many cases, but pdqsort is too fast for sorted list. Usually, sorted list is handled well enough, won't be the bottleneck. We should pay more attention to general cases. 
 
-### Compared to generic sort in golang.org/x/exp/slices
+### Compared to generic sort in Go's generic slices package
 ```
 name               exp time/op  new time/op  delta
 Int/Small-1K       26.8µs ± 1%  24.0µs ± 1%  -10.23%  (p=0.000 n=9+10)

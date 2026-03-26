@@ -5,7 +5,7 @@
 package slices
 
 import (
-	"golang.org/x/exp/constraints"
+	"cmp"
 	"unsafe"
 )
 
@@ -14,12 +14,12 @@ import (
 // numbers containing Not-a-number (NaN) values.
 // Use slices.SortFunc(x, func(a, b float64) bool {return a < b || (math.IsNaN(a) && !math.IsNaN(b))})
 // instead if the input may contain NaNs.
-func Sort[E constraints.Ordered](x []E) {
+func Sort[E cmp.Ordered](x []E) {
 	sortFast(x)
 }
 
 // SortStable sorts the slice x while keeping the original order of equal
-func SortStable[E constraints.Ordered](x []E) {
+func SortStable[E cmp.Ordered](x []E) {
 	sortStable(x, true)
 }
 
@@ -39,7 +39,7 @@ func SortStableFunc[E any](x []E, less func(a, b E) bool) {
 }
 
 // IsSorted reports whether x is sorted in ascending order.
-func IsSorted[E constraints.Ordered](x []E) bool {
+func IsSorted[E cmp.Ordered](x []E) bool {
 	return isSorted(x)
 }
 
@@ -53,7 +53,7 @@ func IsSortedFunc[E any](x []E, less func(a, b E) bool) bool {
 // where target is found, or the position where target would appear in the
 // sort order; it also returns a bool saying whether the target is really found
 // in the slice. The slice must be sorted in increasing order.
-func BinarySearch[E constraints.Ordered](x []E, target E) (int, bool) {
+func BinarySearch[E cmp.Ordered](x []E, target E) (int, bool) {
 	return binarySearch(x, target)
 }
 
