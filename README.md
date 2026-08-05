@@ -1,15 +1,29 @@
-# Fast generic sort for slices in golang
+# Fast generic sort for slices in Go
 
-This package is based on the slices package in go standard library since v1.21, but has different apis for search and sort.
+This module requires Go 1.21 and provides high-performance generic sorting,
+partial sorting, and slice utilities. Its general slice operations are a
+semantic snapshot of Go 1.21's standard `slices` package; its sorting and
+search APIs intentionally differ from the standard library.
+
+Install v2 with:
+
+```sh
+go get github.com/peterrk/slices/v2
+```
+
+The ordered floating-point APIs do not define results for inputs containing
+NaNs. They still return safely and mutating operations preserve all input
+elements, but callers must not rely on a particular NaN position.
 
 ## API for builtin types
 ```go
-func BinarySearch[E constraints.Ordered](list []E, x E) (int, bool)
-func IsSorted[E constraints.Ordered](list []E) bool
+func BinarySearch[E cmp.Ordered](list []E, x E) (int, bool)
+func IsSorted[E cmp.Ordered](list []E) bool
 func Min[E cmp.Ordered](list []E) E
 func Max[E cmp.Ordered](list []E) E
-func Sort[E constraints.Ordered](list []E)
-func SortStable[E constraints.Ordered](list []E)
+func PartlySort[E cmp.Ordered](list []E, k int)
+func Sort[E cmp.Ordered](list []E)
+func SortStable[E cmp.Ordered](list []E)
 ```
 
 ## API for custom types
@@ -23,9 +37,30 @@ func (od *Order[E]) BinarySearch(list []E, x E) (int, bool)
 func (od *Order[E]) IsSorted(list []E) bool
 func (od *Order[E]) Min(list []E) E
 func (od *Order[E]) Max(list []E) E
+func (od *Order[E]) PartlySort(list []E, k int)
 func (od *Order[E]) Sort(list []E)
 func (od *Order[E]) SortStable(list []E)
 func (od *Order[E]) SortWithOption(list []E, stable, inplace bool)
+```
+
+`Less` and `RefLess` must define the same strict weak ordering when both are
+provided. `SortWithOption` uses an in-place algorithm when `inplace` is true;
+otherwise it may allocate auxiliary storage to improve performance.
+
+## General slice API
+
+The module also exports the Go 1.21 semantic snapshot of these operations:
+
+```go
+Equal             EqualFunc
+Compare           CompareFunc
+Index             IndexFunc
+Contains          ContainsFunc
+Insert            Delete
+DeleteFunc        Replace
+Clone             Compact
+CompactFunc       Grow
+Clip              Reverse
 ```
 
 ## Benchmark Result

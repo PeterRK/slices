@@ -5,6 +5,7 @@
 package slices
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"math/rand"
@@ -206,6 +207,18 @@ func BenchmarkFloatNew(b *testing.B) {
 
 func BenchmarkFloatStd(b *testing.B) {
 	benchmarkFloat(b, std.Sort[[]float64, float64])
+}
+
+func BenchmarkFloatStableNew(b *testing.B) {
+	benchmarkFloat(b, SortStable[float64])
+}
+
+func BenchmarkFloatStableStd(b *testing.B) {
+	benchmarkFloat(b, func(list []float64) {
+		std.SortStableFunc(list, func(a, b float64) int {
+			return cmp.Compare(a, b)
+		})
+	})
 }
 
 func benchmarkString(b *testing.B, sort func([]string)) {

@@ -35,7 +35,8 @@ func main() {
 	var newDecl []ast.Decl
 	for _, d := range af.Decls {
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok || fd.Recv != nil || fd.Name.IsExported() ||
+		if !ok || fd.Recv != nil ||
+			fd.Name.Name == "less" || fd.Name.IsExported() ||
 			fd.Type.TypeParams == nil || len(fd.Type.TypeParams.List) != 1 {
 			continue
 		}
@@ -59,15 +60,15 @@ func main() {
 	tpl := out.Bytes()
 
 	funcPtn := regexp.MustCompile(`\nfunc `)
-	lessPtn := regexp.MustCompile(`cmp\.Less\([^\),]+,[^\),]+\)`)
+	lessPtn := regexp.MustCompile(`less\([^\),]+,[^\),]+\)`)
 
 	src := funcPtn.ReplaceAll(tpl, []byte("\nfunc (lt lessFunc[E]) "))
 	src = lessPtn.ReplaceAllFunc(src, func(origin []byte) []byte {
-		out := make([]byte, len(origin)-6)
+		out := make([]byte, len(origin)-2)
 		out[0] = 'l'
 		out[1] = 't'
 		for i := 2; i < len(out); i++ {
-			out[i] = origin[i+6]
+			out[i] = origin[i+2]
 		}
 		return out
 	})
@@ -75,18 +76,18 @@ func main() {
 
 	src = funcPtn.ReplaceAll(tpl, []byte("\nfunc (lt refLessFunc[E]) "))
 	src = lessPtn.ReplaceAllFunc(src, func(origin []byte) []byte {
-		out := make([]byte, len(origin)-4)
+		out := make([]byte, len(origin))
 		out[0] = 'l'
 		out[1] = 't'
 		out[2] = '('
 		out[3] = '&'
-		pos := bytes.IndexByte(origin, ',') - 4
+		pos := bytes.IndexByte(origin, ',')
 		for i := 4; i < pos; i++ {
-			out[i] = origin[i+5]
+			out[i] = origin[i+1]
 		}
 		out[pos] = '&'
 		for i := pos + 1; i < len(out); i++ {
-			out[i] = origin[i+4]
+			out[i] = origin[i]
 		}
 		return out
 	})

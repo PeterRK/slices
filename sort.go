@@ -10,39 +10,40 @@ import (
 )
 
 // Sort sorts a slice of any ordered type in ascending order.
-// When sorting floating-point numbers, NaNs are ordered before other values.
+// If list contains floating-point NaNs, the resulting order is unspecified.
 func Sort[E cmp.Ordered](list []E) {
 	if !tryBlockIntroSort(list) {
 		sortFast(list)
 	}
 }
 
-// SortStableFunc sorts the slice x while keeping the original order of equal
-// elements, using cmp to compare elements.
+// SortStable sorts list while keeping the original order of equal elements.
+// If list contains floating-point NaNs, the resulting order is unspecified.
 func SortStable[E cmp.Ordered](list []E) {
 	sortStable(list, true)
 }
 
 // PartlySort moves the smallest k elements to list[:k] and sorts that prefix.
+// If list contains floating-point NaNs, the selected elements and their order
+// are unspecified.
 func PartlySort[E cmp.Ordered](list []E, k int) {
 	partlySort(list, k)
 }
 
 // IsSorted reports whether x is sorted in ascending order.
+// If x contains floating-point NaNs, the result is unspecified.
 func IsSorted[E cmp.Ordered](list []E) bool {
 	return isSorted(list)
 }
 
 // Min returns the minimal value in x. It panics if x is empty.
-// For floating-point numbers, Min propagates NaNs (any NaN value in x
-// forces the output to be NaN).
+// If x contains floating-point NaNs, the result is unspecified.
 func Min[E cmp.Ordered](list []E) E {
 	return findMin(list)
 }
 
 // Max returns the maximal value in x. It panics if x is empty.
-// For floating-point E, Max propagates NaNs (any NaN value in x
-// forces the output to be NaN).
+// If x contains floating-point NaNs, the result is unspecified.
 func Max[E cmp.Ordered](list []E) E {
 	return findMax(list)
 }
@@ -51,6 +52,7 @@ func Max[E cmp.Ordered](list []E) E {
 // where target is found, or the position where target would appear in the
 // sort order; it also returns a bool saying whether the target is really found
 // in the slice. The slice must be sorted in increasing order.
+// If x contains floating-point NaNs or target is NaN, the result is unspecified.
 func BinarySearch[E cmp.Ordered](x []E, target E) (int, bool) {
 	return binarySearch(x, target)
 }
@@ -64,6 +66,7 @@ type refLessFunc[E any] func(a, b *E) bool
 // .RefLess is a comparison function with pointer input.
 // At least one of them should be set before use.
 // If both of them are set, they must have the same behavior.
+// Each configured function must define a strict weak ordering.
 type Order[E any] struct {
 	Less    func(a, b E) bool
 	RefLess func(a, b *E) bool

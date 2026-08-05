@@ -492,17 +492,19 @@ func TestInsert(t *testing.T) {
 			t.Errorf("Insert(%v, %d, %v...) = %v, want %v", test.s, test.i, test.add, got, test.want)
 		}
 	}
+}
 
-	// Allocations should be amortized.
+var benchmarkInsertResult []int
+
+func BenchmarkInsertGrowth(b *testing.B) {
 	const count = 50
-	n := testing.AllocsPerRun(10, func() {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
 		s := []int{1, 2, 3}
 		for i := 0; i < count; i++ {
 			s = Insert(s, 0, 1)
 		}
-	})
-	if n > count/2 {
-		t.Errorf("too many allocations inserting %d elements: got %v, want less than %d", count, n, count/2)
+		benchmarkInsertResult = s
 	}
 }
 

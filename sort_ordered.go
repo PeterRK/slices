@@ -15,17 +15,23 @@ func log2Ceil(num uint) int {
 	return bits.Len(num)
 }
 
+// less uses the language comparison directly. Ordered APIs intentionally do
+// not define results for floating-point inputs containing NaNs.
+func less[E cmp.Ordered](a, b E) bool {
+	return a < b
+}
+
 func binarySearch[E cmp.Ordered](list []E, x E) (int, bool) {
 	a, b := 0, len(list)
 	for a < b {
 		m := int(uint(a+b) / 2)
-		if cmp.Less(list[m], x) {
+		if less(list[m], x) {
 			a = m + 1
 		} else {
 			b = m
 		}
 	}
-	if a >= len(list) || cmp.Less(x, list[a]) {
+	if a >= len(list) || less(x, list[a]) {
 		return a, false
 	}
 	return a, true
@@ -33,7 +39,7 @@ func binarySearch[E cmp.Ordered](list []E, x E) (int, bool) {
 
 func isSorted[E cmp.Ordered](list []E) bool {
 	for i := 1; i < len(list); i++ {
-		if cmp.Less(list[i], list[i-1]) {
+		if less(list[i], list[i-1]) {
 			return false
 		}
 	}
@@ -46,7 +52,7 @@ func findMin[E cmp.Ordered](list []E) E {
 	}
 	m := list[0]
 	for i := 1; i < len(list); i++ {
-		if cmp.Less(list[i], m) {
+		if less(list[i], m) {
 			m = list[i]
 		}
 	}
@@ -59,7 +65,7 @@ func findMax[E cmp.Ordered](list []E) E {
 	}
 	m := list[0]
 	for i := 1; i < len(list); i++ {
-		if cmp.Less(m, list[i]) {
+		if less(m, list[i]) {
 			m = list[i]
 		}
 	}
@@ -88,10 +94,10 @@ func sortFast[E cmp.Ordered](list []E) {
 
 		l, r := 0, size-1
 		for {
-			for cmp.Less(list[l], pivot) {
+			for less(list[l], pivot) {
 				l++
 			}
-			for cmp.Less(pivot, list[r]) {
+			for less(pivot, list[r]) {
 				r--
 			}
 			if l >= r {
@@ -120,18 +126,18 @@ const (
 
 func median[E cmp.Ordered](list []E, a, b, c int) (int, uint8) {
 	// keep stable
-	if cmp.Less(list[b], list[a]) {
-		if cmp.Less(list[c], list[b]) {
+	if less(list[b], list[a]) {
+		if less(list[c], list[b]) {
 			return b, hintRevered //c, b, a
-		} else if cmp.Less(list[c], list[a]) {
+		} else if less(list[c], list[a]) {
 			return c, 0 //b, c, a
 		} else {
 			return a, 0 //b, a, c
 		}
 	} else {
-		if cmp.Less(list[c], list[a]) {
+		if less(list[c], list[a]) {
 			return a, 0 //c, a, b
-		} else if cmp.Less(list[c], list[b]) {
+		} else if less(list[c], list[b]) {
 			return c, 0 //a, c, b
 		} else {
 			return b, hintSorted //a, b, c
@@ -191,14 +197,14 @@ func simpleSort[E cmp.Ordered](list []E) {
 	}
 	for i := 1; i < len(list); i++ {
 		curr := list[i]
-		if cmp.Less(curr, list[0]) {
+		if less(curr, list[0]) {
 			for j := i; j > 0; j-- {
 				list[j] = list[j-1]
 			}
 			list[0] = curr
 		} else {
 			pos := i
-			for ; cmp.Less(curr, list[pos-1]); pos-- {
+			for ; less(curr, list[pos-1]); pos-- {
 				list[pos] = list[pos-1]
 			}
 			list[pos] = curr
@@ -220,16 +226,16 @@ func heapDown[E cmp.Ordered](list []E, pos int) {
 	curr := list[pos]
 	kid, last := pos*2+1, len(list)-1
 	for kid < last {
-		if cmp.Less(list[kid], list[kid+1]) {
+		if less(list[kid], list[kid+1]) {
 			kid++
 		}
-		if !cmp.Less(curr, list[kid]) {
+		if !less(curr, list[kid]) {
 			break
 		}
 		list[pos] = list[kid]
 		pos, kid = kid, kid*2+1
 	}
-	if kid == last && cmp.Less(curr, list[kid]) {
+	if kid == last && less(curr, list[kid]) {
 		list[pos], pos = list[kid], kid
 	}
 	list[pos] = curr
@@ -238,56 +244,56 @@ func heapDown[E cmp.Ordered](list []E, pos int) {
 // Sort 5 elemnt in list with 7 comparison.
 func sortIndex5[E cmp.Ordered](list []E,
 	a, b, c, d, e int) (int, int, int, int, int) {
-	if cmp.Less(list[b], list[a]) {
+	if less(list[b], list[a]) {
 		a, b = b, a
 	}
-	if cmp.Less(list[d], list[c]) {
+	if less(list[d], list[c]) {
 		c, d = d, c
 	}
-	if cmp.Less(list[c], list[a]) {
+	if less(list[c], list[a]) {
 		a, c = c, a
 		b, d = d, b
 	}
-	if cmp.Less(list[c], list[e]) {
-		if cmp.Less(list[d], list[e]) {
-			if cmp.Less(list[b], list[d]) {
-				if cmp.Less(list[c], list[b]) {
+	if less(list[c], list[e]) {
+		if less(list[d], list[e]) {
+			if less(list[b], list[d]) {
+				if less(list[c], list[b]) {
 					return a, c, b, d, e
 				} else {
 					return a, b, c, d, e
 				}
-			} else if cmp.Less(list[b], list[e]) {
+			} else if less(list[b], list[e]) {
 				return a, c, d, b, e
 			} else {
 				return a, c, d, e, b
 			}
 		} else {
-			if cmp.Less(list[b], list[e]) {
-				if cmp.Less(list[c], list[b]) {
+			if less(list[b], list[e]) {
+				if less(list[c], list[b]) {
 					return a, c, b, e, d
 				} else {
 					return a, b, c, e, d
 				}
-			} else if cmp.Less(list[b], list[d]) {
+			} else if less(list[b], list[d]) {
 				return a, c, e, b, d
 			} else {
 				return a, c, e, d, b
 			}
 		}
 	} else {
-		if cmp.Less(list[b], list[c]) {
-			if cmp.Less(list[e], list[a]) {
+		if less(list[b], list[c]) {
+			if less(list[e], list[a]) {
 				return e, a, b, c, d
-			} else if cmp.Less(list[e], list[b]) {
+			} else if less(list[e], list[b]) {
 				return a, e, b, c, d
 			} else {
 				return a, b, e, c, d
 			}
 		} else {
-			if cmp.Less(list[a], list[e]) {
+			if less(list[a], list[e]) {
 				a, e = e, a
 			}
-			if cmp.Less(list[d], list[b]) {
+			if less(list[d], list[b]) {
 				b, d = d, b
 			}
 			return e, a, c, b, d
@@ -315,16 +321,16 @@ func triPartition[E cmp.Ordered](list []E) (l, r int) {
 
 	l, r = 2, s-2
 	for {
-		for cmp.Less(list[l], pivotL) {
+		for less(list[l], pivotL) {
 			l++
 		}
-		for cmp.Less(pivotR, list[r]) {
+		for less(pivotR, list[r]) {
 			r--
 		}
-		if cmp.Less(pivotR, list[l]) {
+		if less(pivotR, list[l]) {
 			list[l], list[r] = list[r], list[l]
 			r--
-			if cmp.Less(list[l], pivotL) {
+			if less(list[l], pivotL) {
 				l++
 				continue
 			}
@@ -333,21 +339,21 @@ func triPartition[E cmp.Ordered](list []E) (l, r int) {
 	}
 
 	for k := l + 1; k <= r; k++ {
-		if cmp.Less(pivotR, list[k]) {
-			for cmp.Less(pivotR, list[r]) {
+		if less(pivotR, list[k]) {
+			for less(pivotR, list[r]) {
 				r--
 			}
 			if k >= r {
 				break
 			}
-			if cmp.Less(list[r], pivotL) {
+			if less(list[r], pivotL) {
 				list[l], list[k], list[r] = list[r], list[l], list[k]
 				l++
 			} else {
 				list[k], list[r] = list[r], list[k]
 			}
 			r--
-		} else if cmp.Less(list[k], pivotL) {
+		} else if less(list[k], pivotL) {
 			list[k], list[l] = list[l], list[k]
 			l++
 		}
@@ -392,7 +398,7 @@ func introSort[E cmp.Ordered](list []E, chance int) {
 		l, r := triPartition(list)
 		introSort(list[:l], chance)
 		introSort(list[r+1:], chance)
-		if !cmp.Less(list[l], list[r]) {
+		if !less(list[l], list[r]) {
 			return // All emelents in the middle segemnt are equal.
 		}
 		list = list[l+1 : r]
@@ -414,7 +420,7 @@ func symmerge[E cmp.Ordered](list []E, border int) {
 		a, b := 1, size
 		for a < b {
 			m := int(uint(a+b) / 2)
-			if cmp.Less(list[m], curr) {
+			if less(list[m], curr) {
 				a = m + 1
 			} else {
 				b = m
@@ -433,7 +439,7 @@ func symmerge[E cmp.Ordered](list []E, border int) {
 		a, b := 0, border
 		for a < b {
 			m := int(uint(a+b) / 2)
-			if cmp.Less(curr, list[m]) {
+			if less(curr, list[m]) {
 				b = m
 			} else {
 				a = m + 1
@@ -474,7 +480,7 @@ func symmerge[E cmp.Ordered](list []E, border int) {
 	p := n - 1
 	for a < b {
 		m := int(uint(a+b) / 2)
-		if cmp.Less(list[p-m], list[m]) { //p-m == (n-m)-1
+		if less(list[p-m], list[m]) { //p-m == (n-m)-1
 			b = m
 		} else {
 			a = m + 1
@@ -500,14 +506,14 @@ func mergeSort[E cmp.Ordered](a, b []E) {
 		}
 		b[0] = a[0]
 		for i := 1; i < size; i++ {
-			if curr := a[i]; cmp.Less(curr, b[0]) {
+			if curr := a[i]; less(curr, b[0]) {
 				for j := i; j > 0; j-- {
 					b[j] = b[j-1]
 				}
 				b[0] = curr
 			} else {
 				pos := i
-				for ; cmp.Less(curr, b[pos-1]); pos-- {
+				for ; less(curr, b[pos-1]); pos-- {
 					b[pos] = b[pos-1]
 				}
 				b[pos] = curr
@@ -520,7 +526,7 @@ func mergeSort[E cmp.Ordered](a, b []E) {
 
 		i, j, k := 0, half, 0
 		for ; i < half && j < size; k++ {
-			if cmp.Less(a[j], a[i]) {
+			if less(a[j], a[i]) {
 				b[k] = a[j]
 				j++
 			} else {

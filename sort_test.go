@@ -5,7 +5,6 @@
 package slices
 
 import (
-	"cmp"
 	"fmt"
 	"math"
 	"math/rand"
@@ -53,19 +52,80 @@ func TestSortFloat64Slice(t *testing.T) {
 }
 
 func TestSortFloat64SliceWithNaNs(t *testing.T) {
-	data := float64sWithNaNs[:]
-	data2 := Clone(data)
-
+	input := Clone(float64sWithNaNs[:])
+	data := Clone(input)
 	Sort(data)
-	sort.Float64s(data2)
+	if !sameFloat64Elements(data, input) {
+		t.Errorf("Sort changed the input elements: got %v, input %v", data, input)
+	}
+}
 
-	if !IsSorted(data) {
-		t.Error("IsSorted indicates data isn't sorted")
+func sameFloat64Elements(a, b []float64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	counts := make(map[uint64]int, len(a))
+	for _, value := range a {
+		counts[math.Float64bits(value)]++
+	}
+	for _, value := range b {
+		bits := math.Float64bits(value)
+		if counts[bits] == 0 {
+			return false
+		}
+		counts[bits]--
+	}
+	return true
+}
+
+func TestSortBlockBoundaries(t *testing.T) {
+	for _, size := range []int{15, 16, 50, 51, 1023, 1024, 1025} {
+		t.Run(strconv.Itoa(size), func(t *testing.T) {
+			rng := rand.New(rand.NewSource(int64(size)))
+			input := make([]int, size)
+			for i := range input {
+				input[i] = rng.Intn(257) - 128
+			}
+			got := Clone(input)
+			want := Clone(input)
+			Sort(got)
+			sort.Ints(want)
+			if !Equal(got, want) {
+				t.Fatalf("Sort mismatch at size %d", size)
+			}
+		})
+	}
+}
+
+func TestOrderedSortsWithNaNsPreserveElements(t *testing.T) {
+	operations := []struct {
+		name string
+		fn   func([]float64)
+	}{
+		{name: "Sort", fn: Sort[float64]},
+		{name: "SortStable", fn: SortStable[float64]},
+		{name: "PartlySort", fn: func(data []float64) { PartlySort(data, len(data)/3) }},
 	}
 
-	// Compare for equality using cmp.Compare, which considers NaNs equal.
-	if !EqualFunc(data, data2, func(a, b float64) bool { return cmp.Compare(a, b) == 0 }) {
-		t.Errorf("mismatch between Sort and sort.Float64: got %v, want %v", data, data2)
+	for _, size := range []int{15, 16, 1023, 1024, 1025, 4096} {
+		rng := rand.New(rand.NewSource(int64(size)))
+		input := make([]float64, size)
+		for i := range input {
+			input[i] = rng.Float64()*2000 - 1000
+		}
+		input[0] = math.Float64frombits(0x7ff8000000000001)
+		input[size/2] = math.Float64frombits(0x7ff8000000000002)
+		input[size-1] = math.Float64frombits(0xfff8000000000001)
+
+		for _, operation := range operations {
+			t.Run(fmt.Sprintf("%s/%d", operation.name, size), func(t *testing.T) {
+				got := Clone(input)
+				operation.fn(got)
+				if !sameFloat64Elements(got, input) {
+					t.Fatalf("%s changed the input elements at size %d", operation.name, size)
+				}
+			})
+		}
 	}
 }
 
@@ -287,22 +347,25 @@ func TestMinMaxNaNs(t *testing.T) {
 		t.Errorf("got max %v, want 999.9", Max(fs))
 	}
 
-	// No matter which element of fs is replaced with a NaN, both Min and Max
-	// should propagate the NaN to their output.
+	// Results are unspecified when NaNs are present, but Min and Max must still
+	// return an element from the input.
 	for i := 0; i < len(fs); i++ {
 		testfs := make([]float64, len(fs)+1)
 		copy(testfs, fs)
 		testfs[len(fs)] = testfs[i]
 		testfs[i] = math.NaN()
 
-		fmin := Min(testfs)
-		if !math.IsNaN(fmin) && fmin != -400.4 {
-			t.Errorf("got min %v, want NaN or -400.4", fmin)
-		}
-
-		fmax := Max(testfs)
-		if !math.IsNaN(fmax) && fmax != 999.9 {
-			t.Errorf("got max %v, want NaN or 999.9", fmax)
+		for name, got := range map[string]float64{"Min": Min(testfs), "Max": Max(testfs)} {
+			found := false
+			for _, value := range testfs {
+				if math.Float64bits(got) == math.Float64bits(value) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("%s returned a value not present in the input: %v", name, got)
+			}
 		}
 	}
 }
@@ -423,18 +486,17 @@ func TestBinarySearchInts(t *testing.T) {
 }
 
 func TestBinarySearchFloats(t *testing.T) {
-	data := []float64{math.NaN(), -0.25, 0.0, 1.4}
+	data := []float64{-0.25, 0.0, 1.4}
 	tests := []struct {
 		target    float64
 		wantPos   int
 		wantFound bool
 	}{
-		{math.NaN(), 0, true},
-		{math.Inf(-1), 1, false},
-		{-0.25, 1, true},
-		{0.0, 2, true},
-		{1.4, 3, true},
-		{1.5, 4, false},
+		{math.Inf(-1), 0, false},
+		{-0.25, 0, true},
+		{0.0, 1, true},
+		{1.4, 2, true},
+		{1.5, 3, false},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%v", tt.target), func(t *testing.T) {
@@ -446,6 +508,10 @@ func TestBinarySearchFloats(t *testing.T) {
 			}
 		})
 	}
+
+	// The result is unspecified, but inputs containing NaNs must be safe.
+	BinarySearch([]float64{math.NaN(), 0, 1}, math.NaN())
+	IsSorted([]float64{math.NaN(), 0, 1})
 }
 
 var countOpsSizes = []int{1e2, 3e2, 1e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6}
