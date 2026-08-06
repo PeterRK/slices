@@ -184,8 +184,9 @@ func simpleSort[E cmp.Ordered](list []E) {
 	if len(list) < 2 {
 		return
 	}
+	var curr E
 	for i := 1; i < len(list); i++ {
-		curr := list[i]
+		curr = list[i]
 		if less(curr, list[0]) {
 			for j := i; j > 0; j-- {
 				list[j] = list[j-1]
@@ -494,8 +495,10 @@ func mergeSort[E cmp.Ordered](a, b []E) {
 			return
 		}
 		b[0] = a[0]
+		var curr E
 		for i := 1; i < size; i++ {
-			if curr := a[i]; less(curr, b[0]) {
+			curr = a[i]
+			if less(curr, b[0]) {
 				for j := i; j > 0; j-- {
 					b[j] = b[j-1]
 				}

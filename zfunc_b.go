@@ -147,8 +147,9 @@ func (lt refLessFunc[E]) simpleSort(list []E) {
 	if len(list) < 2 {
 		return
 	}
+	var curr E
 	for i := 1; i < len(list); i++ {
-		curr := list[i]
+		curr = list[i]
 		if lt(&curr, &list[0]) {
 			for j := i; j > 0; j-- {
 				list[j] = list[j-1]
@@ -424,8 +425,10 @@ func (lt refLessFunc[E]) mergeSort(a, b []E) {
 			return
 		}
 		b[0] = a[0]
+		var curr E
 		for i := 1; i < size; i++ {
-			if curr := a[i]; lt(&curr, &b[0]) {
+			curr = a[i]
+			if lt(&curr, &b[0]) {
 				for j := i; j > 0; j-- {
 					b[j] = b[j-1]
 				}
