@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-const bqsSize = 1024
+const bqsSize = 8192
 
 func tryBlockIntroSort[E cmp.Ordered](list []E) bool {
 	var elem E

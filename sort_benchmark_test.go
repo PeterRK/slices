@@ -96,6 +96,7 @@ func benchmarkInt(b *testing.B, sort func([]int)) {
 	for _, gen := range pattern {
 		for _, sc := range level {
 			b.Run(gen.name+"-"+sc.name, func(b *testing.B) {
+				b.ReportAllocs()
 				b.StopTimer()
 				rand.Seed(0)
 				list := make([]int, sc.size)
@@ -122,6 +123,7 @@ func benchmarkHybrid(b *testing.B, sort func([]int)) {
 	n := 10000
 	for _, m := range []int{5, 10, 20, 30, 50} {
 		b.Run(fmt.Sprintf("%d%%", m), func(b *testing.B) {
+			b.ReportAllocs()
 			b.StopTimer()
 			rand.Seed(0)
 			var all [100][]int
@@ -165,6 +167,7 @@ func benchmarkPartlySort(b *testing.B, sort func([]int, int)) {
 		for _, ratio := range []int{5, 10, 30} {
 			k := sc.size * ratio / 100
 			b.Run(sc.name+"-Top"+strconv.Itoa(ratio)+"%", func(b *testing.B) {
+				b.ReportAllocs()
 				b.StopTimer()
 				rand.Seed(0)
 				list := make([]int, sc.size)
@@ -186,6 +189,7 @@ func BenchmarkPartlySort(b *testing.B) {
 func benchmarkFloat(b *testing.B, sort func([]float64)) {
 	for _, sc := range level {
 		b.Run(sc.name, func(b *testing.B) {
+			b.ReportAllocs()
 			b.StopTimer()
 			rand.Seed(0)
 			list := make([]float64, sc.size)
@@ -224,6 +228,7 @@ func BenchmarkFloatStableStd(b *testing.B) {
 func benchmarkString(b *testing.B, sort func([]string)) {
 	for _, sc := range level {
 		b.Run(sc.name, func(b *testing.B) {
+			b.ReportAllocs()
 			b.StopTimer()
 			rand.Seed(0)
 			list := make([]string, sc.size)
@@ -250,6 +255,7 @@ func BenchmarkStrStd(b *testing.B) {
 func benchmarkStruct(b *testing.B, sort func([]smallObject)) {
 	for _, sc := range level {
 		b.Run(sc.name, func(b *testing.B) {
+			b.ReportAllocs()
 			b.StopTimer()
 			rand.Seed(0)
 			list := make([]smallObject, sc.size)
@@ -285,10 +291,62 @@ func BenchmarkStructStd(b *testing.B) {
 	})
 }
 
+// complexObject is 32 bytes on 32-bit platforms and 48 bytes on 64-bit
+// platforms. Its non-nil pointer fields exercise pointer-rich sort behavior.
+type complexObject struct {
+	val  int
+	refs [3]*int
+	pad  [16]byte
+}
+
+func benchmarkComplexStruct(b *testing.B, sort func([]complexObject)) {
+	for _, sc := range level {
+		b.Run(sc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			b.StopTimer()
+			rand.Seed(0)
+			list := make([]complexObject, sc.size)
+			var targets [3]int
+			for i := range list {
+				for j := range list[i].refs {
+					list[i].refs[j] = &targets[j]
+				}
+			}
+			for i := 0; i < b.N; i++ {
+				for j := range list {
+					list[j].val = rand.Intn(sc.size)
+				}
+				b.StartTimer()
+				sort(list)
+				b.StopTimer()
+			}
+		})
+	}
+}
+
+func BenchmarkComplexStructNew(b *testing.B) {
+	order := Order[complexObject]{
+		Less: func(a, b complexObject) bool {
+			return a.val < b.val
+		}, RefLess: func(a, b *complexObject) bool {
+			return a.val < b.val
+		}}
+	benchmarkComplexStruct(b, order.Sort)
+}
+
+func BenchmarkComplexStructStd(b *testing.B) {
+	benchmarkComplexStruct(b, func(list []complexObject) {
+		std.SortFunc(list, func(a, b complexObject) int {
+			return a.val - b.val
+		})
+	})
+}
+
 func benchmarkStructPartlySort(b *testing.B, sort func([]smallObject, int)) {
 	for _, sc := range level {
 		k := sc.size * 5 / 100
 		b.Run(sc.name, func(b *testing.B) {
+			b.ReportAllocs()
 			b.StopTimer()
 			rand.Seed(0)
 			list := make([]smallObject, sc.size)
@@ -337,6 +395,7 @@ func BenchmarkStableStd(b *testing.B) {
 func benchmarkPointer(b *testing.B, sort func([]*smallObject)) {
 	for _, sc := range level {
 		b.Run(sc.name, func(b *testing.B) {
+			b.ReportAllocs()
 			b.StopTimer()
 			rand.Seed(0)
 			data := make([]smallObject, sc.size)

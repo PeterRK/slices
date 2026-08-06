@@ -67,6 +67,7 @@ type refLessFunc[E any] func(a, b *E) bool
 // At least one of them should be set before use.
 // If both of them are set, they must have the same behavior.
 // Each configured function must define a strict weak ordering.
+// RefLess must not modify or retain the pointers passed to it.
 type Order[E any] struct {
 	Less    func(a, b E) bool
 	RefLess func(a, b *E) bool
@@ -161,13 +162,14 @@ var cacheInfo = struct {
 	lineSize  int
 	available int
 }{
-	lineSize:  64,         //most common cache line size
-	available: 256 * 1024, //available bytes for sort
+	lineSize:  64,         // most common cache line size
+	available: 256 * 1024, // available bytes for sort
 }
 
 // The general sort function.
 // Guarantee stability when stable flag is set.
-// Avoid allocating O(n) size extra memory when inplace flag is set.
+// Avoid allocating an O(n)-sized auxiliary slice when inplace is set.
+// Temporary values passed to RefLess may still escape to the heap.
 func (od *Order[E]) SortWithOption(list []E, stable, inplace bool) {
 	if len(list) < 2 {
 		return
