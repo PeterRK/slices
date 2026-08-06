@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Go ${{ matrix.go-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.21.x', stable]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+      - run: go test ./...
+      - run: go vet ./...
+      - if: matrix.go-version == 'stable'
+        run: go test -race ./...
+      - if: matrix.go-version == 'stable'
+        run: GOOS=linux GOARCH=arm64 go test -c -o /tmp/slices-arm64.test
+      - if: matrix.go-version == 'stable'
+        run: go generate ./...
+      - if: matrix.go-version == 'stable'
+        run: git diff --exit-code
